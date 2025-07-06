@@ -47,7 +47,6 @@ __all__ = [
     "struct",
 ]
 
-# TODO: helper function to go from dict to model? if not slotted, we can shortcut and update the __dict__ instead of individually setting attributes???
 T = TypeVar("T")
 P = ParamSpec("P")
 _POST_INIT = "_post_init_"
@@ -180,7 +179,8 @@ class field:
         self.is_computed = True
         return self
 
-#TODO: comb through these helper functions and think through how they are used, if caching can be used, do we need them, etc.
+
+# TODO: comb through these helper functions and think through how they are used, if caching can be used, do we need them, etc.
 # decide when to use function internally vs copying code
 
 # OPTIMIZATION: skip isinstance check to determine if instance or class
@@ -307,7 +307,9 @@ def __replace__(self, **changes):
     # are part of the changes so the new one does not look like every field
     # was initialized with a value from the caller
     changes.update(
-        dict((name, getattr(self, name)) for name in (get_setted(self) - changes.keys()))
+        dict(
+            (name, getattr(self, name)) for name in (get_setted(self) - changes.keys())
+        )
     )
     return self.__class__(**changes)
 
@@ -661,9 +663,11 @@ class StructGenerator:
                                 None,
                                 _FROZEN_REPR,
                                 f"({field_names[0]}=",
-                            )
-                            + tuple(f",{field_name}=" for field_name in field_names[1:])
-                            + (")",),
+                                *tuple(
+                                    f",{field_name}=" for field_name in field_names[1:]
+                                ),
+                                ")",
+                            ),
                         ),
                         template_function.__globals__,
                     )
@@ -671,9 +675,14 @@ class StructGenerator:
                     func = template_function.__class__(
                         template_function.__code__.replace(
                             co_names=("__class__", "__name__") + field_names,
-                            co_consts=(None, f"({field_names[0]}=")
-                            + tuple(f",{field_name}=" for field_name in field_names[1:])
-                            + (")",),
+                            co_consts=(
+                                None,
+                                f"({field_names[0]}=",
+                                *tuple(
+                                    f",{field_name}=" for field_name in field_names[1:]
+                                ),
+                                ")",
+                            ),
                         ),
                         template_function.__globals__,
                     )
@@ -931,13 +940,18 @@ class StructGenerator:
     ) -> FunctionType:
         func = template_function.__class__(  # type: ignore
             template_function.__code__.replace(  # type: ignore
-                co_varnames=("self",)
-                + field_names
-                + (
+                co_varnames=(
+                    "self",
+                    *field_names,
                     "setted",
                     "post_init",
                 ),
-                co_consts=(None, _SETTED) + field_names + (_POST_INIT,),
+                co_consts=(
+                    None,
+                    _SETTED,
+                    *field_names,
+                    _POST_INIT,
+                ),
             ),
             template_function.__globals__  # type: ignore
             | dict((f"_field_{i}_default", d) for i, d in enumerate(field_defaults))
@@ -984,30 +998,28 @@ class StructGenerator:
                     "set",
                     _SETTED,
                     "MISSING",
-                )
-                + (
                     f"_field_0_default",
                     field_names[0],
                     f"_field_0_default_factory",
                     "add",
-                )
-                + tuple(
-                    con
-                    for i, field_name in enumerate(field_names[1:])
-                    for con in (
-                        f"_field_{i+1}_default",
-                        field_name,
-                        f"_field_{i+1}_default_factory",
-                    )
-                )
-                + ("getattr",),
-                co_varnames=("self",)
-                + field_names
-                + (
+                    *tuple(
+                        con
+                        for i, field_name in enumerate(field_names[1:])
+                        for con in (
+                            f"_field_{i+1}_default",
+                            field_name,
+                            f"_field_{i+1}_default_factory",
+                        )
+                    ),
+                    "getattr",
+                ),
+                co_varnames=(
+                    "self",
+                    *field_names,
                     "setted",
                     "post_init",
                 ),
-                co_consts=(None,) + field_names + (_POST_INIT,),
+                co_consts=(None, *field_names, _POST_INIT),
             ),
             template_function.__globals__  # type: ignore
             | dict((f"_field_{i}_default", d) for i, d in enumerate(field_defaults))
@@ -1047,8 +1059,12 @@ class StructGenerator:
     ) -> FunctionType:
         func = template_function.__class__(  # type: ignore
             template_function.__code__.replace(  # type: ignore
-                co_varnames=("self",) + field_names + ("post_init",),
-                co_consts=(None,) + field_names + (_POST_INIT,),
+                co_varnames=(
+                    "self",
+                    *field_names,
+                    "post_init",
+                ),
+                co_consts=(None, *field_names, _POST_INIT),
             ),
             template_function.__globals__,
         )
@@ -1063,8 +1079,11 @@ class StructGenerator:
     ) -> FunctionType:
         func = template_function.__class__(  # type: ignore
             template_function.__code__.replace(  # type: ignore
-                co_names=field_names + ("getattr",),
-                co_varnames=("self",) + field_names + ("post_init",),
+                co_names=(
+                    *field_names,
+                    "getattr",
+                ),
+                co_varnames=("self", *field_names, "post_init"),
             ),
             template_function.__globals__,
         )

@@ -108,7 +108,7 @@ class JsonPointer:
         try:
             return self._cache[other]
         except KeyError:
-            self._cache[other] = result = JsonPointer(self.parts + (other,))
+            self._cache[other] = result = JsonPointer((*self.parts, other))
             return result
 
 

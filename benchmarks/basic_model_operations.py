@@ -225,7 +225,7 @@ BENCHMARKS = [
     Benchmark("pyserde", "pyserde", get_pyserde_template),
     Benchmark("mashumaro", "mashumaro", get_mashumaro_template),
     Benchmark("msgspec", "msgspec", get_msgspec_template),
-    Benchmark("jsonproto", "jsonproto", get_jsonproto_template),
+    Benchmark("jsonproto", "whatamithinking.jsonproto", get_jsonproto_template),
 ]
 
 

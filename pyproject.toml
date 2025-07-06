@@ -6,7 +6,7 @@ requires = ["hatchling"]
 path = "whatamithinking/jsonproto/__init__.py"
 
 [tool.hatch.build.targets.wheel]
-packages = ["whatamithinking.jsonproto"]
+packages = ["whatamithinking"]
 
 [project]
 authors = [
