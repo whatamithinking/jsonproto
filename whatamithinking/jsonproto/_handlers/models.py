@@ -239,10 +239,14 @@ class ModelHandler(TypeHandler):
                 continue
             if field_excluded := config.exclude.matches(field_pointer):
                 continue
-            name, alias, default, type_handler = self._field_type_handlers[vname]
+            type_handler_info = self._field_type_handlers.get(vname)
+            if type_handler_info is not None:
+                name, alias, default, type_handler = type_handler_info
+            else:
+                name = alias = default = type_handler = MISSING
             if config.exclude_unset and name in unset_names:
                 continue
-            if type_handler is None:
+            if type_handler is MISSING:
                 match config.extras_mode:
                     case "drop":
                         pass
