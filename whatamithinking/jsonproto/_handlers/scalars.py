@@ -1,3 +1,4 @@
+from tkinter import N
 from typing import Any, TYPE_CHECKING
 from types import NoneType
 import datetime
@@ -122,8 +123,13 @@ class EnumHandler(TypeHandler):
     def build(self):
         from .._codec import Config
         
+        # unravel types, handling StrEnum and IntEnum which bury the type of the values in the enum
+        base_type = self.type_hint.__bases__[0]
+        while issubclass(base_type, enum.Enum):
+            base_type = base_type.__bases__[0]
+        
         self._type_handler = self.get_type_handler(
-            type_hint=self.type_hint.__bases__[0], constraints=self.constraints
+            type_hint=base_type, constraints=self.constraints
         )
         self.python_options = frozenset(_.value for _ in self.type_hint)
         self.json_options = set()

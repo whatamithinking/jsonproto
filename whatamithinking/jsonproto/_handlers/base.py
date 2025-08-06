@@ -6,6 +6,7 @@ from typing import (
     TYPE_CHECKING,
     Self,
 )
+import inspect
 from types import MappingProxyType, MethodType
 import weakref
 
@@ -130,6 +131,11 @@ class TypeHandler:
         self.type_hint = type_hint
         self.constraints = constraints
         self.type_hint_value = type_hint_value
+
+    def __repr__(self) -> str:
+        thstr = self.type_hint.__name__ if inspect.isclass(self.type_hint) else str(self.type_hint)
+        return (f'{self.__class__.__name__}(codec={self.codec!r}, type_hint={thstr}, '
+                f'constraints={self.constraints!r}, type_hint_value={self.type_hint_value!r})')
 
     def __init_subclass__(cls) -> None:
         method = getattr(cls, "handle", None)

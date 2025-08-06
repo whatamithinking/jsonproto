@@ -74,6 +74,9 @@ class Codec:
         # LRU cache for Config instances with optimized key generation
         self._config_cache = LRU(1024)
 
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}()"
+
     def _create_config(
         self,
         metadata: Metadata,
