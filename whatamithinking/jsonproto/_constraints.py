@@ -122,18 +122,6 @@ T_ConstraintId = Literal[
 ]
 
 
-class _ConstraintCache(type):
-    _cache = {}
-
-    def __call__(self, *args, **kwargs):
-        key = make_cache_key(args=args, kwargs=kwargs)
-        try:
-            instance = self._cache[key]
-        except KeyError:
-            self._cache[key] = instance = super().__call__(*args, **kwargs)
-        return instance
-
-
 T_ValueComparator = Literal["eq", "gt", "ge", "le", "lt"]
 T_ValueConstraintId = Literal[
     "value_eq",
@@ -154,7 +142,7 @@ _value_comparators = dict(
 
 
 @struct(kw_only=False)
-class Value(BaseConstraint, metaclass=_ConstraintCache):
+class Value(BaseConstraint):
     comparator: T_ValueComparator
     value: int | float | Decimal
     constraint_type: ClassVar[str] = "value"
@@ -184,7 +172,7 @@ _length_comparators = dict(
 
 
 @struct(kw_only=False)
-class Length(BaseConstraint, metaclass=_ConstraintCache):
+class Length(BaseConstraint):
     comparator: T_LengthComparator
     value: int
     constraint_type: ClassVar[str] = "length"
@@ -205,35 +193,35 @@ class Length(BaseConstraint, metaclass=_ConstraintCache):
 
 
 @struct(kw_only=False)
-class Alias(BaseConstraint, metaclass=_ConstraintCache):
+class Alias(BaseConstraint):
     value: str
     constraint_type: ClassVar[str] = "alias"
     constraint_id: ClassVar[str] = "alias"
 
 
 @struct(kw_only=False)
-class Title(BaseConstraint, metaclass=_ConstraintCache):
+class Title(BaseConstraint):
     value: str
     constraint_type: ClassVar[str] = "title"
     constraint_id: ClassVar[str] = "title"
 
 
 @struct(kw_only=False)
-class Summary(BaseConstraint, metaclass=_ConstraintCache):
+class Summary(BaseConstraint):
     value: str
     constraint_type: ClassVar[str] = "summary"
     constraint_id: ClassVar[str] = "summary"
 
 
 @struct(kw_only=False)  # type: ignore
-class Description(BaseConstraint, metaclass=_ConstraintCache):  # type: ignore
+class Description(BaseConstraint):  # type: ignore
     value: str  # type: ignore
     constraint_type: ClassVar[str] = "description"
     constraint_id: ClassVar[str] = "description"
 
 
 @struct(kw_only=False)
-class Pattern(BaseConstraint, metaclass=_ConstraintCache):
+class Pattern(BaseConstraint):
     """Constrain the value to matching a specific regular expression pattern, per jsonschema
     regex subset.
 
@@ -258,7 +246,7 @@ class Pattern(BaseConstraint, metaclass=_ConstraintCache):
 
 
 @struct(kw_only=False)
-class Discriminator(BaseConstraint, metaclass=_ConstraintCache):
+class Discriminator(BaseConstraint):
     field_name: str
     constraint_type: ClassVar[str] = "discriminator"
     constraint_id: ClassVar[str] = "discriminator"
@@ -288,7 +276,7 @@ _encodings = dict(zip(cached_get_args(T_Encoding), cached_get_args(T_EncodingCon
 
 
 @struct(kw_only=False)
-class Encoding(BaseConstraint, metaclass=_ConstraintCache):
+class Encoding(BaseConstraint):
     value: T_Encoding
     constraint_type: ClassVar[str] = "encoding"
 
@@ -359,7 +347,7 @@ _formats = dict(
 
 
 @struct(kw_only=False)
-class Format(BaseConstraint, metaclass=_ConstraintCache):
+class Format(BaseConstraint):
     value: T_Format
     constraint_type: ClassVar[str] = "format"
 
@@ -375,14 +363,14 @@ class Format(BaseConstraint, metaclass=_ConstraintCache):
 # need deprecated constraint in addition to @deprecated decorator in order
 # to handle deprecation of individual parameters as well as entire operations
 @struct(kw_only=False)
-class Deprecated(BaseConstraint, metaclass=_ConstraintCache):
+class Deprecated(BaseConstraint):
     value: bool = True
     constraint_type: ClassVar[str] = "deprecated"
     constraint_id: ClassVar[str] = "deprecated"
 
 
 @struct(kw_only=False)
-class Example(BaseConstraint, metaclass=_ConstraintCache):
+class Example(BaseConstraint):
     value: Any
     name: str | None = None
     summary: str | None = None
@@ -392,7 +380,7 @@ class Example(BaseConstraint, metaclass=_ConstraintCache):
 
 
 @struct(kw_only=False)
-class Status(BaseConstraint, metaclass=_ConstraintCache):
+class Status(BaseConstraint):
     status: int
     constraint_type: ClassVar[str] = "status"
     constraint_id: ClassVar[str] = "status"
@@ -407,14 +395,14 @@ class Status(BaseConstraint, metaclass=_ConstraintCache):
 
 
 @struct(kw_only=False)
-class Default(BaseConstraint, metaclass=_ConstraintCache):
+class Default(BaseConstraint):
     value: Any
     constraint_type: ClassVar[str] = "default"
     constraint_id: ClassVar[str] = "default"
 
 
 @struct(kw_only=False)
-class DefaultFactory(BaseConstraint, metaclass=_ConstraintCache):
+class DefaultFactory(BaseConstraint):
     value: Callable[[], Any]
     constraint_type: ClassVar[str] = "default_factory"
     constraint_id: ClassVar[str] = "default_factory"
@@ -438,7 +426,7 @@ _media_types = dict(
 
 
 @struct(kw_only=False)
-class MediaType(BaseConstraint, metaclass=_ConstraintCache):
+class MediaType(BaseConstraint):
     value: T_MediaType
     constraint_type: ClassVar[str] = "media_type"
 
@@ -467,7 +455,7 @@ _data_types = dict(zip(cached_get_args(T_DataType), T_DataTypeConstraintId))
 
 
 @struct(kw_only=False)
-class DataType(BaseConstraint, metaclass=_ConstraintCache):
+class DataType(BaseConstraint):
     value: T_DataType
     constraint_type: ClassVar[str] = "data_type"
 
@@ -483,7 +471,7 @@ class DataType(BaseConstraint, metaclass=_ConstraintCache):
 
 
 @struct(kw_only=False)
-class Contact(BaseConstraint, metaclass=_ConstraintCache):
+class Contact(BaseConstraint):
     name: str
     url: str | None = None
     email: str | None = None
@@ -492,7 +480,7 @@ class Contact(BaseConstraint, metaclass=_ConstraintCache):
 
 
 @struct(kw_only=False)
-class Server(BaseConstraint, metaclass=_ConstraintCache):
+class Server(BaseConstraint):
     url: str
     description: str | None = None
     constraint_type: ClassVar[str] = "server"
@@ -500,7 +488,7 @@ class Server(BaseConstraint, metaclass=_ConstraintCache):
 
 
 @struct(kw_only=False)
-class Interface(BaseConstraint, metaclass=_ConstraintCache):
+class Interface(BaseConstraint):
     title: str
     version: str
     summary: str | None = None
@@ -515,7 +503,7 @@ class Interface(BaseConstraint, metaclass=_ConstraintCache):
 # we will only use on them to perform the search so we need to make sure only one at a time
 # is allowed to avoid confusion of user in results returned when both are given
 @struct(kw_only=False, init=False)
-class Disjoint(BaseConstraint, metaclass=_ConstraintCache):
+class Disjoint(BaseConstraint):
     field_names: frozenset[str]
     constraint_type: ClassVar[str] = "disjoint"
     constraint_id: ClassVar[str] = "disjoint"
@@ -533,7 +521,7 @@ class Disjoint(BaseConstraint, metaclass=_ConstraintCache):
 # the search i also need their zip code/state/country, so i need to make sure they
 # have filled in those other fields
 @struct(kw_only=False, init=False)
-class Dependent(BaseConstraint, metaclass=_ConstraintCache):
+class Dependent(BaseConstraint):
     field_names: frozenset[str]
     constraint_type: ClassVar[str] = "dependent"
     constraint_id: ClassVar[str] = "dependent"

@@ -125,6 +125,14 @@ class field:
         if cache is not None:
             self.is_cached = cache
 
+    @property
+    def is_required(self):
+        return (
+            not self.is_computed
+            and self.default is MISSING
+            and self.default_factory is MISSING
+        )
+
     def __repr__(self):
         return (
             f"{self.__class__.__name__}("
@@ -244,11 +252,7 @@ def get_required(obj: type[StructProto] | StructProto) -> frozenset[str]:
     """Return a set of field names on the model which are required
     (i.e. their values must be given on init)"""
     return frozenset(
-        name
-        for name, field in get_fields(obj).items()
-        if not field.is_computed
-        and field.default is MISSING
-        and field.default_factory is MISSING
+        name for name, field in get_fields(obj).items() if field.is_required
     )
 
 
@@ -257,11 +261,7 @@ def get_optional(obj: type[StructProto] | StructProto) -> frozenset[str]:
     (i.e. they have default values or are computed so they dont have to be given on init)
     """
     return frozenset(
-        name
-        for name, field in get_fields(obj).items()
-        if field.is_computed
-        or field.default is not MISSING
-        or field.default_factory is not MISSING
+        name for name, field in get_fields(obj).items() if not field.is_required
     )
 
 

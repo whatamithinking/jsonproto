@@ -5,7 +5,13 @@ from types import NoneType
 from collections.abc import Mapping, Sequence
 
 from ._struct import struct, field
-from ._constraints import T_DataType, T_Format, T_Encoding, T_LengthComparator, T_ValueComparator
+from ._constraints import (
+    T_DataType,
+    T_Format,
+    T_Encoding,
+    T_LengthComparator,
+    T_ValueComparator,
+)
 from ._pointers import JsonPointer
 from ._common import JsonType
 
@@ -43,7 +49,7 @@ class PythonTypeIssue(BaseIssue):
 class JsonTypeIssue(BaseIssue):
     issue_type: ClassVar[str] = "json_type"
     expected_type: T_DataType
-    
+
     @field(cache=True)
     def actual_type(self) -> T_DataType:
         match self.value:
@@ -98,7 +104,7 @@ class LengthIssue(BaseIssue):
     comparator: T_LengthComparator
     value: str | list
     limit: int
-    
+
     @field(cache=True)
     def length(self) -> int:
         return len(self.value)
@@ -115,7 +121,7 @@ class NumberIssue(BaseIssue):
 @struct
 class ExtraFieldIssue(BaseIssue):
     issue_type: ClassVar[str] = "extra_field"
-    name: str
+    extra: str
 
 
 @struct
@@ -126,15 +132,19 @@ class MissingFieldIssue(BaseIssue):
 @struct
 class DependentIssue(BaseIssue):
     issue_type: ClassVar[str] = "dependent"
-    set_names: frozenset[str]
-    dependent_names: frozenset[str]
+    dependent: frozenset[str]
+    setted: frozenset[str]
+
+    @field(cache=True)
+    def missing(self) -> frozenset[str]:
+        return self.dependent - self.setted
 
 
 @struct
 class DisjointIssue(BaseIssue):
     issue_type: ClassVar[str] = "disjoint"
-    set_names: frozenset[str]
-    disjoint_names: frozenset[str]
+    setted: frozenset[str]
+    disjoint: frozenset[str]
 
 
 @struct
