@@ -265,14 +265,20 @@ def get_optional(obj: type[StructProto] | StructProto) -> frozenset[str]:
     )
 
 
-def get_unsetted(obj: StructProto) -> frozenset[str]:
-    """Return set of field names which were not set in the model constructor."""
-    return frozenset(getattr(obj, _FIELDS).keys() - getattr(obj, _SETTED))
+_default_setted = frozenset()
 
 
 def get_setted(obj: StructProto) -> frozenset[str]:
     """Return set of field names which were set in the model constructor."""
-    return frozenset(getattr(obj, _SETTED))
+    try:
+        return frozenset(getattr(obj, _SETTED))
+    except AttributeError:
+        return _default_setted
+
+
+def get_unsetted(obj: StructProto) -> frozenset[str]:
+    """Return set of field names which were not set in the model constructor."""
+    return frozenset(getattr(obj, _FIELDS).keys() - get_setted(obj))
 
 
 def set_extras(obj: StructProto, extras: dict) -> None:
