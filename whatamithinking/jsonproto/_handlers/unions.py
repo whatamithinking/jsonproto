@@ -21,9 +21,7 @@ from .._issues import (
 
 from .base import TypeHandler, register_default_type_handler
 
-__all__ = [
-    "UnionHandler"
-]
+__all__ = ["UnionHandler"]
 
 
 @register_default_type_handler(Union)
@@ -63,13 +61,12 @@ class UnionHandler(TypeHandler):
         else:
             # Fast-path for Optional[T] (Union[T, NoneType] or Union[NoneType, T])
             args = cached_get_args(self.type_hint)
-            if (
-                len(args) == 2 and
-                (args[0] is NoneType or args[1] is NoneType)
-            ):
+            if len(args) == 2 and (args[0] is NoneType or args[1] is NoneType):
                 # Find the non-None type
                 non_none_type = args[1] if args[0] is NoneType else args[0]
-                self._optional_type_handler = self.get_type_handler(type_hint=non_none_type)
+                self._optional_type_handler = self.get_type_handler(
+                    type_hint=non_none_type, constraints=self.constraints
+                )
                 self._handle = self._optional_handle
             else:
                 self._handle = self._left_to_right_handle
@@ -97,9 +94,7 @@ class UnionHandler(TypeHandler):
                 value=value,
                 pointer=pointer,
                 discriminator=(
-                    self._disc_alias
-                    if config.source == "json"
-                    else self._disc_name
+                    self._disc_alias if config.source == "json" else self._disc_name
                 ),
             )
         try:
@@ -112,14 +107,14 @@ class UnionHandler(TypeHandler):
                     value=value,
                     pointer=pointer,
                     discriminator=(
-                        self._disc_alias
-                        if config.source == "json"
-                        else self._disc_name
+                        self._disc_alias if config.source == "json" else self._disc_name
                     ),
                 )
             else:
                 self._disc_type_handlers[disc_value] = type_handler = (
-                    self.get_type_handler(type_hint=type_hint)
+                    self.get_type_handler(
+                        type_hint=type_hint, constraints=self.constraints
+                    )
                 )
         return type_handler.handle(
             value=value,
@@ -166,7 +161,9 @@ class UnionHandler(TypeHandler):
                 except:
                     break
                 else:
-                    type_handler = self.get_type_handler(type_hint=type_hint)
+                    type_handler = self.get_type_handler(
+                        type_hint=type_hint, constraints=self.constraints
+                    )
                     self._type_handlers[i] = type_handler
             cvalue, cissues = type_handler.handle(
                 value=value,
