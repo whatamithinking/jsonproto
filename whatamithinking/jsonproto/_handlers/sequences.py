@@ -199,33 +199,32 @@ class SequenceHandler(TypeHandler):
     ) -> tuple[Any | MISSING_TYPE, list[BaseIssue]]:
         issues = []
         cvalue = value
-        if config.validate:
-            if config.source == "json":
-                if cvalue.__class__ is not self.destructure_class:
-                    return cvalue, [
-                        JsonTypeIssue(
-                            value=cvalue,
-                            pointer=pointer,
-                            expected_type="array",
-                        )
-                    ]
-            else:
-                # if coercion enabled and we were given an iterable, we can skip validation here
-                # as we will create an instance of the sequence below anyway. if coercion not allowed
-                # or we were not given an iterable, we have to check the type here and maybe fail
-                # here so we enforce strict types and dont let the bad input type reach the loop below
-                if config.coerce and hasattr(cvalue, "__iter__"):
-                    pass
-                elif cvalue.__class__ is not self.structure_class:
-                    return cvalue, [
-                        PythonTypeIssue(
-                            value=cvalue,
-                            pointer=pointer,
-                            expected_type=(
-                                Iterable if config.coerce else self.structure_class
-                            ),
-                        )
-                    ]
+        if config.source == "json":
+            if cvalue.__class__ is not self.destructure_class:
+                return cvalue, [
+                    JsonTypeIssue(
+                        value=cvalue,
+                        pointer=pointer,
+                        expected_type="array",
+                    )
+                ]
+        else:
+            # if coercion enabled and we were given an iterable, we can skip validation here
+            # as we will create an instance of the sequence below anyway. if coercion not allowed
+            # or we were not given an iterable, we have to check the type here and maybe fail
+            # here so we enforce strict types and dont let the bad input type reach the loop below
+            if config.coerce and hasattr(cvalue, "__iter__"):
+                pass
+            elif cvalue.__class__ is not self.structure_class:
+                return cvalue, [
+                    PythonTypeIssue(
+                        value=cvalue,
+                        pointer=pointer,
+                        expected_type=(
+                            Iterable if config.coerce else self.structure_class
+                        ),
+                    )
+                ]
         source_patches = config.patches.have_for("source", "value")
         target_patches = config.patches.have_for("target", "value")
         sequence_class = self.destructure_class if config.target == "json" else self.structure_class

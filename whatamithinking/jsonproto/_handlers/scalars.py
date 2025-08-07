@@ -61,20 +61,19 @@ class BoolHandler(TypeHandler):
         if not included or excluded:
             return MISSING, []
         issues = []
-        if config.validate:
-            if value.__class__ is not bool:
-                if config.source == "json":
-                    issues.append(
-                        JsonTypeIssue(
-                            value=value, pointer=pointer, expected_type="boolean"
-                        )
+        if value.__class__ is not bool:
+            if config.source == "json":
+                issues.append(
+                    JsonTypeIssue(
+                        value=value, pointer=pointer, expected_type="boolean"
                     )
-                else:
-                    issues.append(
-                        PythonTypeIssue(
-                            value=value, pointer=pointer, expected_type=bool
-                        )
+                )
+            else:
+                issues.append(
+                    PythonTypeIssue(
+                        value=value, pointer=pointer, expected_type=bool
                     )
+                )
         return value, issues
 
 
@@ -95,20 +94,19 @@ class NoneHandler(TypeHandler):
         if not included or excluded:
             return MISSING, []
         issues = []
-        if config.validate:
-            if value.__class__ not in (None, NoneType):
-                if config.source == "json":
-                    issues.append(
-                        JsonTypeIssue(
-                            value=value, pointer=pointer, expected_type="null"
-                        )
+        if value.__class__ not in (None, NoneType):
+            if config.source == "json":
+                issues.append(
+                    JsonTypeIssue(
+                        value=value, pointer=pointer, expected_type="null"
                     )
-                else:
-                    issues.append(
-                        PythonTypeIssue(
-                            value=value, pointer=pointer, expected_type=None
-                        )
+                )
+            else:
+                issues.append(
+                    PythonTypeIssue(
+                        value=value, pointer=pointer, expected_type=None
                     )
+                )
         return value, issues
 
 
@@ -190,16 +188,15 @@ class EnumHandler(TypeHandler):
                             )
                         )
         else:
-            if config.validate:
-                if config.coerce and cvalue.__class__ is not self.type_hint:
-                    with suppress(ValueError):
-                        cvalue = self.type_hint(cvalue)
-                if cvalue.__class__ is not self.type_hint:
-                    return cvalue, [
-                        PythonTypeIssue(
-                            value=cvalue, pointer=pointer, expected_type=self.type_hint
-                        )
-                    ]
+            if config.coerce and cvalue.__class__ is not self.type_hint:
+                with suppress(ValueError):
+                    cvalue = self.type_hint(cvalue)
+            if cvalue.__class__ is not self.type_hint:
+                return cvalue, [
+                    PythonTypeIssue(
+                        value=cvalue, pointer=pointer, expected_type=self.type_hint
+                    )
+                ]
             if config.convert and config.target == "json":
                 try:
                     cvalue = cvalue.value
