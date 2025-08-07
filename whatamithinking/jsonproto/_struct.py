@@ -33,6 +33,7 @@ from ._common import (
 __all__ = [
     "StructProto",
     "is_struct_class",
+    "is_struct_instance",
     "field",
     "FrozenInstanceError",
     "get_fields",
