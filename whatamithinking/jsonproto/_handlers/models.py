@@ -157,59 +157,58 @@ class ModelHandler(TypeHandler):
         cvalue = value
         if config.coerce:
             cvalue = self.coerce(value=cvalue, pointer=pointer, config=config)
-        if config.validate:
-            match config.source:
-                case "json":
-                    if cvalue.__class__ is not self.json_class:
-                        return cvalue, [
-                            JsonTypeIssue(
-                                value=cvalue,
-                                pointer=pointer,
-                                expected_type="object",
-                            )
-                        ]
-                case "unstruct":
-                    # if coercion allowed and this is mapping like or an iterable with two objects for
-                    # each item we can accept it and convert to a mapping below
-                    if config.coerce and (
-                        hasattr(cvalue, "items")
-                        or (
-                            hasattr(cvalue, "__iter__")
-                            and cvalue
-                            and len(cvalue[0]) == 2
+        match config.source:
+            case "json":
+                if cvalue.__class__ is not self.json_class:
+                    return cvalue, [
+                        JsonTypeIssue(
+                            value=cvalue,
+                            pointer=pointer,
+                            expected_type="object",
                         )
-                    ):
-                        pass
-                    elif cvalue.__class__ is not self.python_class:
-                        return cvalue, [
-                            PythonTypeIssue(
-                                value=cvalue,
-                                pointer=pointer,
-                                expected_type=self.python_class,
-                            )
-                        ]
-                case "struct":
-                    # if coercion allowed and this is a mapping or iterable of k/v pairs or another model
-                    # we can work with it as-is. otherwise, we are gonna need this to be the exact model
-                    # we are looking for
-                    if config.coerce and (
-                        hasattr(cvalue, "items")
-                        or (
-                            hasattr(cvalue, "__iter__")
-                            and cvalue
-                            and len(cvalue[0]) == 2
+                    ]
+            case "unstruct":
+                # if coercion allowed and this is mapping like or an iterable with two objects for
+                # each item we can accept it and convert to a mapping below
+                if config.coerce and (
+                    hasattr(cvalue, "items")
+                    or (
+                        hasattr(cvalue, "__iter__")
+                        and cvalue
+                        and len(cvalue[0]) == 2
+                    )
+                ):
+                    pass
+                elif cvalue.__class__ is not self.python_class:
+                    return cvalue, [
+                        PythonTypeIssue(
+                            value=cvalue,
+                            pointer=pointer,
+                            expected_type=self.python_class,
                         )
-                        or is_struct_instance(cvalue)
-                    ):
-                        pass
-                    elif cvalue.__class__ is not self.type_hint:
-                        return cvalue, [
-                            PythonTypeIssue(
-                                value=cvalue,
-                                pointer=pointer,
-                                expected_type=self.type_hint,
-                            )
-                        ]
+                    ]
+            case "struct":
+                # if coercion allowed and this is a mapping or iterable of k/v pairs or another model
+                # we can work with it as-is. otherwise, we are gonna need this to be the exact model
+                # we are looking for
+                if config.coerce and (
+                    hasattr(cvalue, "items")
+                    or (
+                        hasattr(cvalue, "__iter__")
+                        and cvalue
+                        and len(cvalue[0]) == 2
+                    )
+                    or is_struct_instance(cvalue)
+                ):
+                    pass
+                elif cvalue.__class__ is not self.type_hint:
+                    return cvalue, [
+                        PythonTypeIssue(
+                            value=cvalue,
+                            pointer=pointer,
+                            expected_type=self.type_hint,
+                        )
+                    ]
         source_key_patches = config.patches.have_for("source", "key")
         source_value_patches = config.patches.have_for("source", "value")
         # patches to target keys do not make sense in this context since we do not use the keys
