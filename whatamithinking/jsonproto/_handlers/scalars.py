@@ -1,3 +1,4 @@
+from tkinter import N
 from typing import Any, TYPE_CHECKING
 from types import NoneType
 import datetime
@@ -60,20 +61,19 @@ class BoolHandler(TypeHandler):
         if not included or excluded:
             return MISSING, []
         issues = []
-        if config.validate:
-            if value.__class__ is not bool:
-                if config.source == "json":
-                    issues.append(
-                        JsonTypeIssue(
-                            value=value, pointer=pointer, expected_type="boolean"
-                        )
+        if value.__class__ is not bool:
+            if config.source == "json":
+                issues.append(
+                    JsonTypeIssue(
+                        value=value, pointer=pointer, expected_type="boolean"
                     )
-                else:
-                    issues.append(
-                        PythonTypeIssue(
-                            value=value, pointer=pointer, expected_type=bool
-                        )
+                )
+            else:
+                issues.append(
+                    PythonTypeIssue(
+                        value=value, pointer=pointer, expected_type=bool
                     )
+                )
         return value, issues
 
 
@@ -94,20 +94,19 @@ class NoneHandler(TypeHandler):
         if not included or excluded:
             return MISSING, []
         issues = []
-        if config.validate:
-            if value.__class__ not in (None, NoneType):
-                if config.source == "json":
-                    issues.append(
-                        JsonTypeIssue(
-                            value=value, pointer=pointer, expected_type="null"
-                        )
+        if value.__class__ not in (None, NoneType):
+            if config.source == "json":
+                issues.append(
+                    JsonTypeIssue(
+                        value=value, pointer=pointer, expected_type="null"
                     )
-                else:
-                    issues.append(
-                        PythonTypeIssue(
-                            value=value, pointer=pointer, expected_type=None
-                        )
+                )
+            else:
+                issues.append(
+                    PythonTypeIssue(
+                        value=value, pointer=pointer, expected_type=None
                     )
+                )
         return value, issues
 
 
@@ -122,8 +121,13 @@ class EnumHandler(TypeHandler):
     def build(self):
         from .._codec import Config
         
+        # unravel types, handling StrEnum and IntEnum which bury the type of the values in the enum
+        base_type = self.type_hint.__bases__[0]
+        while issubclass(base_type, enum.Enum):
+            base_type = base_type.__bases__[0]
+        
         self._type_handler = self.get_type_handler(
-            type_hint=self.type_hint.__bases__[0], constraints=self.constraints
+            type_hint=base_type, constraints=self.constraints
         )
         self.python_options = frozenset(_.value for _ in self.type_hint)
         self.json_options = set()
@@ -184,16 +188,15 @@ class EnumHandler(TypeHandler):
                             )
                         )
         else:
-            if config.validate:
-                if config.coerce and cvalue.__class__ is not self.type_hint:
-                    with suppress(ValueError):
-                        cvalue = self.type_hint(cvalue)
-                if cvalue.__class__ is not self.type_hint:
-                    return cvalue, [
-                        PythonTypeIssue(
-                            value=cvalue, pointer=pointer, expected_type=self.type_hint
-                        )
-                    ]
+            if config.coerce and cvalue.__class__ is not self.type_hint:
+                with suppress(ValueError):
+                    cvalue = self.type_hint(cvalue)
+            if cvalue.__class__ is not self.type_hint:
+                return cvalue, [
+                    PythonTypeIssue(
+                        value=cvalue, pointer=pointer, expected_type=self.type_hint
+                    )
+                ]
             if config.convert and config.target == "json":
                 try:
                     cvalue = cvalue.value

@@ -201,16 +201,15 @@ class NumberLikeHandler(TypeHandler):
             converted = coerced = self.coerce(value=value, pointer=pointer, config=config)
         if config.source == "json":
             is_json_type = True
-            if config.validate:
-                if converted.__class__ is not self.destructure_class:
-                    is_json_type = False
-                    issues.append(
-                        JsonTypeIssue(
-                            value=converted,
-                            pointer=pointer,
-                            expected_type=self.data_type,
-                        )
+            if converted.__class__ is not self.destructure_class:
+                is_json_type = False
+                issues.append(
+                    JsonTypeIssue(
+                        value=converted,
+                        pointer=pointer,
+                        expected_type=self.data_type,
                     )
+                )
             if is_json_type:
                 if not self._is_destructure_class_number or config.validate or (config.convert and config.target != "json"):
                     try:
@@ -235,17 +234,17 @@ class NumberLikeHandler(TypeHandler):
                     )
         else:
             is_python_type = True
-            if config.validate:
-                if converted.__class__ is not self.structure_class:
-                    is_python_type = False
-                    issues.append(
-                        PythonTypeIssue(
-                            value=converted,
-                            pointer=pointer,
-                            expected_type=self.structure_class,
-                        )
+            if converted.__class__ is not self.structure_class:
+                is_python_type = False
+                issues.append(
+                    PythonTypeIssue(
+                        value=converted,
+                        pointer=pointer,
+                        expected_type=self.structure_class,
                     )
-                elif self._validators:
+                )
+            if config.validate:
+                if self._validators:
                     issues.extend(
                         issue
                         for validator in self._validators

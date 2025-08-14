@@ -33,6 +33,7 @@ from ._common import (
 __all__ = [
     "StructProto",
     "is_struct_class",
+    "is_struct_instance",
     "field",
     "FrozenInstanceError",
     "get_fields",
@@ -124,6 +125,14 @@ class field:
             self.is_computed = True
         if cache is not None:
             self.is_cached = cache
+
+    @property
+    def is_required(self):
+        return (
+            not self.is_computed
+            and self.default is MISSING
+            and self.default_factory is MISSING
+        )
 
     def __repr__(self):
         return (
@@ -244,11 +253,7 @@ def get_required(obj: type[StructProto] | StructProto) -> frozenset[str]:
     """Return a set of field names on the model which are required
     (i.e. their values must be given on init)"""
     return frozenset(
-        name
-        for name, field in get_fields(obj).items()
-        if not field.is_computed
-        and field.default is MISSING
-        and field.default_factory is MISSING
+        name for name, field in get_fields(obj).items() if field.is_required
     )
 
 
@@ -257,22 +262,24 @@ def get_optional(obj: type[StructProto] | StructProto) -> frozenset[str]:
     (i.e. they have default values or are computed so they dont have to be given on init)
     """
     return frozenset(
-        name
-        for name, field in get_fields(obj).items()
-        if field.is_computed
-        or field.default is not MISSING
-        or field.default_factory is not MISSING
+        name for name, field in get_fields(obj).items() if not field.is_required
     )
 
 
-def get_unsetted(obj: StructProto) -> frozenset[str]:
-    """Return set of field names which were not set in the model constructor."""
-    return frozenset(getattr(obj, _FIELDS).keys() - getattr(obj, _SETTED))
+_default_setted = frozenset()
 
 
 def get_setted(obj: StructProto) -> frozenset[str]:
     """Return set of field names which were set in the model constructor."""
-    return frozenset(getattr(obj, _SETTED))
+    try:
+        return frozenset(getattr(obj, _SETTED))
+    except AttributeError:
+        return _default_setted
+
+
+def get_unsetted(obj: StructProto) -> frozenset[str]:
+    """Return set of field names which were not set in the model constructor."""
+    return frozenset(getattr(obj, _FIELDS).keys() - get_setted(obj))
 
 
 def set_extras(obj: StructProto, extras: dict) -> None:

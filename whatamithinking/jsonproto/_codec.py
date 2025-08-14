@@ -74,6 +74,9 @@ class Codec:
         # LRU cache for Config instances with optimized key generation
         self._config_cache = LRU(1024)
 
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}()"
+
     def _create_config(
         self,
         metadata: Metadata,
@@ -269,7 +272,7 @@ class Codec:
             data = orjson.dumps(value, option=orjson.OPT_SORT_KEYS)
         except (TypeError, orjson.JSONEncodeError) as exc:
             raise ValidationError(
-                [SerializeIssue(value=value, pointer=JsonPointer.root, message=exc.msg)]
+                [SerializeIssue(value=value, pointer=JsonPointer.root, message=exc.args[0])]
             ) from exc
         if target == "jsonbytes":
             return data
@@ -282,7 +285,7 @@ class Codec:
             return orjson.loads(value)
         except orjson.JSONDecodeError as exc:
             raise ValidationError(
-                [DeserializeIssue(value=value, pointer=JsonPointer.root, message=exc.msg)]
+                [DeserializeIssue(value=value, pointer=JsonPointer.root, message=exc.args[0])]
             ) from exc
 
     def execute(

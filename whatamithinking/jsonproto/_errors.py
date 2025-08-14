@@ -92,7 +92,7 @@ class ValidationError(Error):
                 for pissue in pissues
             )
             parts.append(f"pointer='{pointer}'\n        {pointer_issues}")
-        issue_str = "\n    ".join(parts)
+        issue_str = "\n\n    ".join(parts)
         return f"{self.args[0]}\n    {issue_str}"
 
 

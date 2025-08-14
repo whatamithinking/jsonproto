@@ -83,7 +83,21 @@ def identity(value: T) -> T:
     return value
 
 
-class BaseConstraint:
+class _ConstraintCache(type):
+    _cache: dict[type["BaseConstraint"], dict[Any, "BaseConstraint"]] = {}
+
+    def __call__(cls, *args, **kwargs):
+        key = make_cache_key(args=args, kwargs=kwargs)
+        try:
+            instance = cls._cache[cls][key]
+        except KeyError:
+            cls._cache.setdefault(cls, {})[key] = instance = super().__call__(
+                *args, **kwargs
+            )
+        return instance
+
+
+class BaseConstraint(metaclass=_ConstraintCache):
     constraint_type: ClassVar["T_ConstraintType"]
     constraint_id: ClassVar["T_ConstraintId"]
 
@@ -162,6 +176,13 @@ class Constraints:
         for constraint in constraints:
             self._append(constraint)
 
+    def extendleft(self, constraints: Iterable[BaseConstraint]) -> None:
+        for constraint in constraints:
+            # if constraint already in mapping current value should take precedence over these prepend values
+            if constraint.constraint_id in self._mapping:
+                continue
+            self._append(constraint)
+
 
 class _EmptyConstraints(Constraints):
     _hash = hash(())
@@ -176,7 +197,7 @@ class _EmptyConstraints(Constraints):
     def __reversed__(self):
         return self._iter
 
-    def get(self, constraint_id, default = None):
+    def get(self, constraint_id, default=None):
         return default
 
 

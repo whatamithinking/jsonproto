@@ -60,36 +60,35 @@ class MappingHandler(TypeHandler):
     ) -> tuple[Any | MISSING_TYPE, list[BaseIssue]]:
         issues = []
         cvalue = value
-        if config.validate:
-            if config.source == "json":
-                if cvalue.__class__ is not self.destructure_class:
-                    return cvalue, [
-                        JsonTypeIssue(
-                            value=cvalue,
-                            pointer=pointer,
-                            expected_type="object",
-                        )
-                    ]
-            else:
-                # if coerce enabled and we were given some sort of mapping we can skip validating the exact type
-                # so long as we can iterate over the items in the mapping, we dont have to worry about the exact type
-                # can also support sequence of some kind so long as when we iterate over it we will get two objects
-                # to use for key/value pair
-                if config.coerce and (
-                    hasattr(cvalue, "items")
-                    or (hasattr(cvalue, "__iter__") and cvalue and len(cvalue[0]) == 2)
-                ):
-                    pass
-                elif cvalue.__class__ is not self.structure_class:
-                    return cvalue, [
-                        PythonTypeIssue(
-                            value=cvalue,
-                            pointer=pointer,
-                            expected_type=(
-                                Mapping if config.coerce else self.structure_class
-                            ),
-                        )
-                    ]
+        if config.source == "json":
+            if cvalue.__class__ is not self.destructure_class:
+                return cvalue, [
+                    JsonTypeIssue(
+                        value=cvalue,
+                        pointer=pointer,
+                        expected_type="object",
+                    )
+                ]
+        else:
+            # if coerce enabled and we were given some sort of mapping we can skip validating the exact type
+            # so long as we can iterate over the items in the mapping, we dont have to worry about the exact type
+            # can also support sequence of some kind so long as when we iterate over it we will get two objects
+            # to use for key/value pair
+            if config.coerce and (
+                hasattr(cvalue, "items")
+                or (hasattr(cvalue, "__iter__") and cvalue and len(cvalue[0]) == 2)
+            ):
+                pass
+            elif cvalue.__class__ is not self.structure_class:
+                return cvalue, [
+                    PythonTypeIssue(
+                        value=cvalue,
+                        pointer=pointer,
+                        expected_type=(
+                            Mapping if config.coerce else self.structure_class
+                        ),
+                    )
+                ]
         source_key_patches = config.patches.have_for("source", "key")
         source_value_patches = config.patches.have_for("source", "value")
         target_key_patches = config.patches.have_for("target", "key")

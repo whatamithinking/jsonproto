@@ -69,26 +69,25 @@ class ClassVarHandler(TypeHandler):
             config=config,
         )
         issues.extend(cissues)
-        if config.validate:
-            format = config.target if config.convert else config.source
-            if format == "json":
-                if cvalue != self.json_value:
-                    issues.append(
-                        ConstantIssue(
-                            value=cvalue,
-                            pointer=pointer,
-                            expected_value=self.json_value,
-                        )
+        format = config.target if config.convert else config.source
+        if format == "json":
+            if cvalue != self.json_value:
+                issues.append(
+                    ConstantIssue(
+                        value=cvalue,
+                        pointer=pointer,
+                        expected_value=self.json_value,
                     )
-            else:
-                if cvalue != self.python_value:
-                    issues.extend(
-                        ConstantIssue(
-                            value=cvalue,
-                            pointer=pointer,
-                            expected_value=self.python_value,
-                        )
+                )
+        else:
+            if cvalue != self.python_value:
+                issues.extend(
+                    ConstantIssue(
+                        value=cvalue,
+                        pointer=pointer,
+                        expected_value=self.python_value,
                     )
+                )
         if config.convert or config.coerce:
             return cvalue, issues
         return value, issues

@@ -281,17 +281,17 @@ class StringHandler(TypeHandler):
             )
         if config.source == "json":
             is_json_type = True
-            if config.validate:
-                if converted.__class__ is not str:
-                    is_json_type = False
-                    issues.append(
-                        JsonTypeIssue(
-                            value=converted,
-                            pointer=pointer,
-                            expected_type="string",
-                        )
+            if converted.__class__ is not str:
+                is_json_type = False
+                issues.append(
+                    JsonTypeIssue(
+                        value=converted,
+                        pointer=pointer,
+                        expected_type="string",
                     )
-                elif self._validators:
+                )
+            if config.validate:
+                if self._validators:
                     issues.extend(
                         issue
                         for validator in self._validators
@@ -327,17 +327,17 @@ class StringHandler(TypeHandler):
                     )
         else:
             is_python_type = True
-            if config.validate:
-                if converted.__class__ is not self.structure_class:
-                    is_python_type = False
-                    issues.append(
-                        PythonTypeIssue(
-                            value=converted,
-                            pointer=pointer,
-                            expected_type=self.structure_class,
-                        )
+            if converted.__class__ is not self.structure_class:
+                is_python_type = False
+                issues.append(
+                    PythonTypeIssue(
+                        value=converted,
+                        pointer=pointer,
+                        expected_type=self.structure_class,
                     )
-                elif (
+                )
+            if config.validate:
+                if (
                     self._validators and self.structure_class is self.destructure_class
                 ):
                     issues.extend(
