@@ -9,6 +9,7 @@ import operator
 import enum
 from inspect import isclass
 from contextlib import suppress
+from pathlib import Path
 
 if TYPE_CHECKING:
     from .._codec import Config
@@ -42,6 +43,7 @@ __all__ = [
     "UrlHandler",
     "PatternHandler",
     "UuidHandler",
+    "PathHandler",
 ]
 
 
@@ -377,3 +379,9 @@ class UuidHandler(BytesHandler):
                     case bytes():
                         return self.structure_class(bytes=value)
         return value
+
+
+@register_default_type_handler(Path)
+class PathHandler(StringHandler):
+    structure_class = Path
+    structure = staticmethod(Path)
