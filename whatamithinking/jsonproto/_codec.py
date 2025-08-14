@@ -34,7 +34,7 @@ from ._common import (
     MISSING,
 )
 from ._resolver import TypeHintResolution, resolve_type_hint
-from ._struct import struct, is_struct_instance
+from ._struct import struct, is_struct_instance, is_struct_class
 
 __all__ = [
     "Config",
@@ -294,8 +294,8 @@ class Codec:
         type_hint: T_UnresolvedTypeHint = MISSING,
         type_hint_value: T_TypeHintValue = MISSING,
         metadata: Metadata = Metadata(),
-        source: T_CodecSourceFormat = "unstruct",
-        target: T_CodecTargetFormat | None = None,
+        source: T_CodecSourceFormat = MISSING,
+        target: T_CodecTargetFormat = MISSING,
         coerce: bool = False,
         validate: bool = False,
         convert: bool = False,
@@ -312,11 +312,30 @@ class Codec:
         if type_hint is MISSING:
             if is_struct_instance(value):
                 type_hint = value.__class__
+                if source is MISSING:
+                    source = "struct"
             else:
+                # while it may be possible to guess the type hint in some cases, it may be slow
+                # and error prone. user should generally provide it in most cases when not simply
+                # working with structs to avoid ambiguous type inference
                 raise ValueError(
                     "type_hint must be given when value is not a model instance"
                 )
-        if target is None:
+        if source is MISSING:
+            if is_struct_instance(value):
+                source = "struct"
+            else:
+                is_type_hint_struct = is_struct_class(type_hint)
+                if is_type_hint_struct and isinstance(value, str):
+                    source = "jsonstr"
+                elif is_type_hint_struct and isinstance(value, (bytes, bytearray)):
+                    source = "jsonbytes"
+                else:
+                    # other option is a dict. if a dict, possible it is a dict of json-encoded
+                    # fields and values OR it is a dict of python types. no great way to tell
+                    # in a reliable way one or the other
+                    raise ValueError("source format cannot be inferred, please explicitly provide it.")
+        if target is MISSING:
             target = source
         # NOTE: source and target are allowed to be the same thing, so we can perform a copy
         pointer = JsonPointer.root
