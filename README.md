@@ -6,10 +6,57 @@ Declarative json modeler, validator, encoder, and decoder
 
 - [WhatAmIThinking-JsonProto](#whatamithinking-jsonproto)
   - [Table of Contents](#table-of-contents)
+  - [Usage](#usage)
+  - [Usage - Format Inference](#usage---format-inference)
+    - [Usage - Format Inference - Type Hint](#usage---format-inference---type-hint)
+    - [Usage - Format Inference - Source](#usage---format-inference---source)
+    - [Usage - Format Inference - Target](#usage---format-inference---target)
   - [Benchmarks](#benchmarks)
     - [Benchmarks - Config](#benchmarks---config)
     - [Benchmarks - Basic Model Operations](#benchmarks---basic-model-operations)
     - [Benchmarks - Validation and Conversion](#benchmarks---validation-and-conversion)
+
+## Usage
+
+## Usage - Format Inference
+
+TLDR: you can skip providing `source` unless `value` is a `dict` and you can skip providing `target` unless you are trying to convert to something other than the `source` format.
+
+In order for anything to work, we need to know the source format of the data we have and the target format of the data we want to go to. In some cases these may be the same, such as when we only want to validate data against the `type_hint` but otherwise skip any kind of conversion. `Codec.execute` has a param called `source` and another called `target` referring to the format before and after. The possible values are:
+
+- `struct`: a struct/model instance using python native types
+- `unstruct`: a dict/list/etc. of python native types. basically just unwrapping the struct/model from the data
+- `json`: json-encoded form of the data, using only json-supported types (str, int, list, dict, etc.)
+- `jsonstr`: string json-serialized data
+- `jsonbytes`: bytes json-serialized data
+
+To cut down on typing, a minor amount of format inference is supported, allowing the codec to guess the type_hint, source format, and target format under certain circumstances.
+
+### Usage - Format Inference - Type Hint
+
+| Condition           | Inference          |
+| ------------------- | ------------------ |
+| `value` is `struct` | `type(value)`      |
+| Fallback            | raise `ValueError` |
+
+### Usage - Format Inference - Source
+
+A notable exception to `source` format inference at the moment is when the value given is a `dict`. A `dict` could be either `json` or `unstruct` format, so the caller needs to explicitly provide the format.
+
+| Condition                                      | Inference          |
+| ---------------------------------------------- | ------------------ |
+| `value` is `struct`                            | `struct`           |
+| `type_hint` is `struct` and `value` is `str`   | `jsonstr`          |
+| `type_hint` is `struct` and `value` is `bytes` | `jsonbytes`        |
+| Fallback                                       | raise `ValueError` |
+
+### Usage - Format Inference - Target
+
+There is no way to infer the target when conversion/coercion is desired. When doing validation we probably just want source=target since we are not doing anything with the target format. 
+
+| Condition | Inference |
+| --------- | --------- |
+| Fallback  | `source`  |
 
 ## Benchmarks
 
