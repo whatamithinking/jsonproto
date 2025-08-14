@@ -155,7 +155,7 @@ class Constraints:
     ) -> BaseConstraint | deque[BaseConstraint] | T:
         return self._mapping.get(constraint_id, default)
 
-    def _append(self, constraint: BaseConstraint) -> None:
+    def append(self, constraint: BaseConstraint) -> None:
         match constraint.constraint_id:
             # handle constraints we allow multiple instances of
             case "example":
@@ -174,14 +174,14 @@ class Constraints:
 
     def _extend(self, constraints: Iterable[BaseConstraint]) -> None:
         for constraint in constraints:
-            self._append(constraint)
+            self.append(constraint)
 
     def extendleft(self, constraints: Iterable[BaseConstraint]) -> None:
         for constraint in constraints:
             # if constraint already in mapping current value should take precedence over these prepend values
             if constraint.constraint_id in self._mapping:
                 continue
-            self._append(constraint)
+            self.append(constraint)
 
 
 class _EmptyConstraints(Constraints):
