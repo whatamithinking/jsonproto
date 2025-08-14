@@ -2,13 +2,22 @@
 
 Declarative json modeler, validator, encoder, and decoder
 
+## Table of Contents
+
+- [WhatAmIThinking-JsonProto](#whatamithinking-jsonproto)
+  - [Table of Contents](#table-of-contents)
+  - [Benchmarks](#benchmarks)
+    - [Benchmarks - Config](#benchmarks---config)
+    - [Benchmarks - Basic Model Operations](#benchmarks---basic-model-operations)
+    - [Benchmarks - Validation and Conversion](#benchmarks---validation-and-conversion)
+
 ## Benchmarks
 
 Please take all benchmarks with a grain of salt. Results depend heavily on what you are doing. Different libraries may be optimized for certain situations, such as simplistic benchmarking approachs (including this library). It is always best to do your own benchmarking for the kinds of data models and validation you expect to encounter in your project. That said, I usually like seeing benchmarks on infrastructure stuff which I will use everywhere as a quick gut check. If you have suggestions on how to improve these benchmarks, please open an issue.
 
 Also worth mentioning I do what I can to use the best available settings for each library which I found in the docs. I am no doubt a bit biased towards making my own library perform well, but I try to avoid doing any kind of "bending over backwards" to make things optimal unless the docs suggest it. Again, everyone is biased and you should do your own benchmarking.
 
-### Config
+### Benchmarks - Config
 
 - Python: 3.13.3 (tags/v3.13.3:6280bb5, Apr  8 2025, 14:47:33) [MSC v.1943 64 bit (AMD64)]
 - OS: Windows 10.0.26100
@@ -18,7 +27,7 @@ Also worth mentioning I do what I can to use the best available settings for eac
 - Physical Cores: 4
 - Logical Cores: 8
 
-### Basic Model Operations
+### Benchmarks - Basic Model Operations
 
 This covers just working with the models themselves (classes decorated with `@jsonproto`) directly and does not cover time the `Codec` would spend performing various operations, including constructing. One of the areas for improvement noted when auditing modeling libraries was that the time just to define the model class was quite large and significantly slowed down the debugger in an IDE when a large number of models (a few hundred in one project) were created, making it cumbersome to debug the code at all. The time spent building the model is a central focus of this library so it can scale well even with large numbers of models.
 
@@ -108,7 +117,7 @@ Mutable Slotted Basic Model Operations
 +--------------------------+-------------+-------------+------------+------------+-----------+-----------+--------------+--------------+
 ```
 
-### Validation and Conversion
+### Benchmarks - Validation and Conversion
 
 ```text
 Number of executions per trial: 10000
