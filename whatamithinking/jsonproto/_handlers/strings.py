@@ -1,4 +1,4 @@
-from typing import Any, cast, TYPE_CHECKING, Callable
+from typing import Any, cast, TYPE_CHECKING, Callable, Self
 from base64 import (
     b16decode,
     b32decode,
@@ -42,11 +42,16 @@ from .base import TypeHandler, register_default_type_handler
 __all__ = ["StringHandler"]
 
 
+def is_structure_class(self: "StringHandler", obj: Any) -> bool:
+    return obj.__class__ is self.structure_class
+
+
 @register_default_type_handler(str)
 class StringHandler(TypeHandler):
     data_type = "string"
     media_type = "text/plain"
     structure_class: type = str
+    is_structure_class: Callable[[Self, Any], bool] = is_structure_class
     structure: Callable[[str], Any] = str
     copy_structure: Callable[[Any], Any] = staticmethod(identity)
     destructure_class: type = str
@@ -327,7 +332,7 @@ class StringHandler(TypeHandler):
                     )
         else:
             is_python_type = True
-            if converted.__class__ is not self.structure_class:
+            if not self.is_structure_class(converted):
                 is_python_type = False
                 issues.append(
                     PythonTypeIssue(

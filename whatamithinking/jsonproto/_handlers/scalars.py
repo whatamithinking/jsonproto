@@ -9,7 +9,7 @@ import operator
 import enum
 from inspect import isclass
 from contextlib import suppress
-from pathlib import Path
+from pathlib import Path, WindowsPath, PosixPath
 
 if TYPE_CHECKING:
     from .._codec import Config
@@ -381,7 +381,12 @@ class UuidHandler(BytesHandler):
         return value
 
 
+def is_path_structure_class(self, obj) -> bool:
+    return obj.__class__ in (Path, WindowsPath, PosixPath)
+
+
 @register_default_type_handler(Path)
 class PathHandler(StringHandler):
     structure_class = Path
+    is_structure_class = is_path_structure_class
     structure = staticmethod(Path)
