@@ -18,15 +18,12 @@ dependencies = [
   "lru-dict",
 ]
 description = "declarative json modeler, validator, encoder, and decoder"
-dynamic = ["version", "readme"]
+dynamic = ["version"]
 keywords = []
 maintainers = []
 name = "whatamithinking-jsonproto"
 requires-python = ">=3.12"
-
-[tool.setuptools.dynamic]
-readme = {file = "README.md"}
-version = {attr = "whatamithinking.jsonproto.__version__"}
+readme = {file = "README.md", content-type = "text/markdown"}
 
 [project.optional-dependencies]
 dev = ["black"]
