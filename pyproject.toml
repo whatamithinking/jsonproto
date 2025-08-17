@@ -25,6 +25,12 @@ name = "whatamithinking-jsonproto"
 requires-python = ">=3.12"
 readme = {file = "README.md", content-type = "text/markdown"}
 
+[project.urls]
+Homepage = "https://github.com/whatamithinking/jsonproto"
+Documentation = "https://github.com/whatamithinking/jsonproto"
+Repository = "https://github.com/whatamithinking/jsonproto"
+Issues = "https://github.com/whatamithinking/jsonproto/issues"
+
 [project.optional-dependencies]
 dev = ["black"]
 test = []
