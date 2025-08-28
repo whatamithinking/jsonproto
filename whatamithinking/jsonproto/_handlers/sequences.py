@@ -51,7 +51,7 @@ class SequenceHandler(TypeHandler):
                 comparator="eq",
                 value=value,
                 pointer=pointer,
-                expected_length=limit,
+                limit=limit,
             )
         ]
 
@@ -68,7 +68,7 @@ class SequenceHandler(TypeHandler):
                 comparator="gt",
                 value=value,
                 pointer=pointer,
-                expected_length=limit,
+                limit=limit,
             )
         ]
 
@@ -85,7 +85,7 @@ class SequenceHandler(TypeHandler):
                 comparator="ge",
                 value=value,
                 pointer=pointer,
-                expected_length=limit,
+                limit=limit,
             )
         ]
 
@@ -102,7 +102,7 @@ class SequenceHandler(TypeHandler):
                 comparator="le",
                 value=value,
                 pointer=pointer,
-                expected_length=limit,
+                limit=limit,
             )
         ]
 
@@ -119,7 +119,7 @@ class SequenceHandler(TypeHandler):
                 comparator="lt",
                 value=value,
                 pointer=pointer,
-                expected_length=limit,
+                limit=limit,
             )
         ]
 
