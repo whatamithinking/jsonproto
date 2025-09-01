@@ -336,6 +336,23 @@ def __frozen_delattr__(self, name):
     return super(cls, self).__delattr__(name)  # type: ignore
 
 
+def __getitem__(self, name):
+    try:
+        result = self.__dict__[name]
+    except KeyError:
+        raise KeyError(f"Item, {name}, is not a valid field name for this struct.") from None
+    else:
+        if name not in getattr(self, _FIELDS):
+            raise KeyError(f"Item, {name}, is not a valid field name for this struct.")
+        return result
+
+
+def __setitem__(self, name, value):
+    if name not in getattr(self, _FIELDS):
+        raise KeyError(f"Item, {name}, is not a valid field name for this struct.")
+    self.__dict__[name] = value
+
+
 class _LazyDescriptor:
     __slots__ = ("name", "method", "args")
 
@@ -401,6 +418,8 @@ class StructGenerator:
         hash: bool,
         replace: bool,
         slots: bool,
+        getitem: bool,
+        setitem: bool,
     ) -> dict[str, field]:
         fields_dict = {}
         for k in cls.__mro__[-1:0:-1]:
@@ -502,6 +521,8 @@ class StructGenerator:
         hash: bool,
         replace: bool,
         slots: bool,
+        getitem: bool,
+        setitem: bool,
     ) -> None:
         field_names: tuple[str] = get_names(cls)
         exact_key = (op, field_names)
@@ -583,6 +604,8 @@ class StructGenerator:
         hash: bool,
         replace: bool,
         slots: bool,
+        getitem: bool,
+        setitem: bool,
     ) -> None:
         cls.__replace__ = __replace__
 
@@ -598,6 +621,8 @@ class StructGenerator:
         hash: bool,
         replace: bool,
         slots: bool,
+        getitem: bool,
+        setitem: bool,
     ) -> None:
         field_names: tuple[str] = get_names(cls)
         exact_key = (field_names, frozen)
@@ -708,6 +733,8 @@ class StructGenerator:
         hash: bool,
         replace: bool,
         slots: bool,
+        getitem: bool,
+        setitem: bool,
     ) -> None:
         cls.__setattr__ = __frozen_setattr__.__class__(  # type: ignore
             __frozen_setattr__.__code__,
@@ -738,6 +765,8 @@ class StructGenerator:
         hash: bool,
         replace: bool,
         slots: bool,
+        getitem: bool,
+        setitem: bool,
     ) -> None:
         field_names: tuple[str] = get_names(cls)
         exact_key = (field_names, frozen)
@@ -1109,6 +1138,8 @@ class StructGenerator:
         hash: bool,
         replace: bool,
         slots: bool,
+        getitem: bool,
+        setitem: bool,
     ) -> None:
         fields_dict = get_fields(cls)
         field_names: tuple[str] = tuple(
@@ -1305,6 +1336,8 @@ class StructGenerator:
         hash: bool,
         replace: bool,
         slots: bool,
+        getitem: bool,
+        setitem: bool,
         constraints: Iterable["BaseConstraint"],
     ) -> type[T]:
         # NOTE: lazy building model to minimize import costs. separate fields from methods
@@ -1315,7 +1348,7 @@ class StructGenerator:
         setattr(
             cls,
             _PARAMS,
-            (self, (init, repr, eq, order, frozen, kw_only, hash, replace, slots)),
+            (self, (init, repr, eq, order, frozen, kw_only, hash, replace, slots, getitem, setitem)),
         )
         setattr(cls, _FIELDS, _lazy_fields)
         if slots:
@@ -1341,6 +1374,10 @@ class StructGenerator:
             cls.__hash__ = _lazy_hash
         if replace:
             cls.__replace__ = _lazy_replace
+        if getitem:
+            cls.__getitem__ = __getitem__
+        if setitem:
+            cls.__setitem__ = __setitem__
         return cls
 
 
@@ -1369,6 +1406,8 @@ def struct(
     hash: bool = True,
     replace: bool = True,
     slots: bool = False,  # defaults to off due to significant overhead added in building class
+    getitem: bool = False,
+    setitem: bool = False,
     constraints: Iterable["BaseConstraint"] = (),
 ) -> type[T] | Callable[[type[T]], type[T]]:
     def wrap_model(cls):
@@ -1383,6 +1422,8 @@ def struct(
             hash=hash,
             replace=replace,
             slots=slots,
+            getitem=getitem,
+            setitem=setitem,
             constraints=constraints,
         )
 
