@@ -16,8 +16,9 @@ from typing import (
 from types import (
     FunctionType,
     MappingProxyType,
+    new_class
 )
-from functools import wraps
+import sys
 
 from lru import LRU
 
@@ -28,6 +29,7 @@ from ._common import (
     BaseConstraint,
     cached_get_origin,
     cached_get_args,
+    T_FuzzyTypeHint,
 )
 
 __all__ = [
@@ -46,6 +48,7 @@ __all__ = [
     "get_extras",
     "get_constraints",
     "struct",
+    "create_struct",
 ]
 
 T = TypeVar("T")
@@ -92,7 +95,7 @@ class StructProto(Protocol):
     _post_init_: Optional[Callable[[Any], None]]
     _constraints_: Optional[tuple["BaseConstraint"]]
     _params_: Optional[tuple[str]]
-    _extra_: Optional[dict]
+    _extras_: Optional[dict]
 
 
 class FrozenInstanceError(AttributeError):
@@ -340,7 +343,9 @@ def __getitem__(self, name):
     try:
         result = self.__dict__[name]
     except KeyError:
-        raise KeyError(f"Item, {name}, is not a valid field name for this struct.") from None
+        raise KeyError(
+            f"Item, {name}, is not a valid field name for this struct."
+        ) from None
     else:
         if name not in getattr(self, _FIELDS):
             raise KeyError(f"Item, {name}, is not a valid field name for this struct.")
@@ -1348,7 +1353,22 @@ class StructGenerator:
         setattr(
             cls,
             _PARAMS,
-            (self, (init, repr, eq, order, frozen, kw_only, hash, replace, slots, getitem, setitem)),
+            (
+                self,
+                (
+                    init,
+                    repr,
+                    eq,
+                    order,
+                    frozen,
+                    kw_only,
+                    hash,
+                    replace,
+                    slots,
+                    getitem,
+                    setitem,
+                ),
+            ),
         )
         setattr(cls, _FIELDS, _lazy_fields)
         if slots:
@@ -1390,7 +1410,7 @@ _model_gen = StructGenerator()
     eq_default=True,
     order_default=True,
     kw_only_default=True,
-    frozen_default=True,
+    frozen_default=False,
     field_specifiers=(field,),
 )
 def struct(
@@ -1430,3 +1450,62 @@ def struct(
     if cls:
         return wrap_model(cls)
     return wrap_model
+
+
+def create_struct(
+    name: str,
+    fields: dict[str, T_FuzzyTypeHint | field],
+    /,
+    *,
+    bases: tuple[type, ...] = (),
+    namespace: dict | None = None,
+    module: str | None = None,
+    init: bool = True,
+    repr: bool = True,
+    eq: bool = True,
+    order: bool = True,
+    frozen: bool = False,  # perf: faster setting of attrs on init if False
+    kw_only: bool = True,
+    hash: bool = True,
+    replace: bool = True,
+    slots: bool = False,  # defaults to off due to significant overhead added in building class
+    getitem: bool = True,  # defaults to True because that is usually main way fields worked with for these structs
+    setitem: bool = True,  # defaults to True because that is usually main way fields worked with for these structs
+    constraints: Iterable["BaseConstraint"] = (),
+) -> type[StructProto]:
+    def _setup(cls_ns: dict):
+        cls_ns.update(namespace or {})
+        cls_ns["__annotations__"] = {
+            field_name: value
+            for field_name, value in fields.items()
+            if value.__class__ is not field
+        }
+
+    cls = new_class(name=name, bases=bases, exec_body=_setup)
+
+    if module is None:
+        try:
+            module = sys._getframemodulename(1) or '__main__'
+        except AttributeError:
+            try:
+                module = sys._getframe(1).f_globals.get('__name__', '__main__')
+            except (AttributeError, ValueError):
+                pass
+    if module is not None:
+        cls.__module__ = module
+
+    return struct(
+        cls,
+        init=init,
+        repr=repr,
+        eq=eq,
+        order=order,
+        frozen=frozen,
+        kw_only=kw_only,
+        hash=hash,
+        replace=replace,
+        slots=slots,
+        getitem=getitem,
+        setitem=setitem,
+        constraints=constraints,
+    )
