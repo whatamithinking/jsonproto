@@ -135,7 +135,7 @@ class SequenceHandler(TypeHandler):
             ))
         else:
             self._item_type_handlers = tuple(map(self.get_type_handler, item_types))
-        self._validators = []
+        self._length_validators = []
         if not self.constraints:
             return
         len_min_inc = len_min_exc = len_max_inc = len_max_exc = len_eq = None
@@ -158,9 +158,8 @@ class SequenceHandler(TypeHandler):
                     len_max_exc = constraint
 
         if len_eq is not None:
-            self._validators.append(
-                partial(self._validate_length_eq, limit=len_eq.value)
-            )
+            validator = partial(self._validate_length_eq, limit=len_eq.value)
+            self._length_validators.append(validator)
         else:
             if len_min_inc is not None and len_min_exc is not None:
                 if len_min_inc.value > len_min_exc.value:
@@ -168,11 +167,11 @@ class SequenceHandler(TypeHandler):
                 else:
                     len_min_inc = None
             if len_min_inc is not None:
-                self._validators.append(
+                self._length_validators.append(
                     partial(self._validate_length_ge, limit=len_min_inc.value)
                 )
             elif len_min_exc is not None:
-                self._validators.append(
+                self._length_validators.append(
                     partial(self._validate_length_gt, limit=len_min_exc.value)
                 )
             if len_max_inc is not None and len_max_exc is not None:
@@ -181,11 +180,11 @@ class SequenceHandler(TypeHandler):
                 else:
                     len_min_inc = None
             if len_max_inc is not None:
-                self._validators.append(
+                self._length_validators.append(
                     partial(self._validate_length_le, limit=len_max_inc.value)
                 )
             elif len_max_exc is not None:
-                self._validators.append(
+                self._length_validators.append(
                     partial(self._validate_length_lt, limit=len_max_exc.value)
                 )
 
@@ -225,6 +224,15 @@ class SequenceHandler(TypeHandler):
                         ),
                     )
                 ]
+        # if coercing, we are ok cutting off the end of the sequence if it is too short
+        # otherwise, we need to make sure we are meeting length requirements
+        # or else we will allow sequences which are too long to pass through even when validating 
+        if not config.coerce and self._length_validators:
+            issues.extend(
+                issue
+                for validator in self._length_validators
+                for issue in validator(value=cvalue, pointer=pointer)
+            )
         source_patches = config.patches.have_for("source", "value")
         target_patches = config.patches.have_for("target", "value")
         sequence_class = self.destructure_class if config.target == "json" else self.structure_class
@@ -266,12 +274,6 @@ class SequenceHandler(TypeHandler):
                 is not MISSING
             )
         )
-        if config.validate and self._validators:
-            issues.extend(
-                issue
-                for validator in self._validators
-                for issue in validator(value=cvalue, pointer=pointer)
-            )
         if (included and not excluded) or cvalue:
             if config.convert or config.coerce:
                 return cvalue, issues

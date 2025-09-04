@@ -9,7 +9,7 @@ import operator
 import enum
 from inspect import isclass
 from contextlib import suppress
-from pathlib import Path, WindowsPath, PosixPath
+from pathlib import Path, WindowsPath, PosixPath, PurePosixPath, PureWindowsPath
 
 if TYPE_CHECKING:
     from .._codec import Config
@@ -390,3 +390,15 @@ class PathHandler(StringHandler):
     structure_class = Path
     is_structure_class = is_path_structure_class
     structure = staticmethod(Path)
+
+
+@register_default_type_handler(PurePosixPath)
+class PurePosixPathHandler(StringHandler):
+    structure_class = PurePosixPath
+    structure = staticmethod(PurePosixPath)
+
+
+@register_default_type_handler(PureWindowsPath)
+class PureWindowsPathHandler(StringHandler):
+    structure_class = PureWindowsPath
+    structure = staticmethod(PureWindowsPath)
