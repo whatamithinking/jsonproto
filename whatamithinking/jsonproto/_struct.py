@@ -13,11 +13,7 @@ from typing import (
     Annotated,
     Literal,
 )
-from types import (
-    FunctionType,
-    MappingProxyType,
-    new_class
-)
+from types import FunctionType, MappingProxyType, new_class
 import sys
 
 from lru import LRU
@@ -53,6 +49,7 @@ __all__ = [
 
 T = TypeVar("T")
 P = ParamSpec("P")
+_INITIALIZED = "_initialized_"
 _POST_INIT = "_post_init_"
 _PARAMS = "_params_"
 _FIELDS = "_fields_"
@@ -69,6 +66,7 @@ _CLASS_ATTRS_DEFAULTS = {
     _CONSTRAINTS: None,
 }
 _INSTANCE_ATTRS = (
+    _INITIALIZED,
     _SETTED,
     _EXTRAS,
     _FROZEN_HASH,
@@ -93,6 +91,7 @@ class StructProto(Protocol):
     _setted_: ClassVar[set[T_FieldName]]
     _computed_: Optional[set[T_FieldName]]
     _post_init_: Optional[Callable[[Any], None]]
+    _initialized_: bool
     _constraints_: Optional[tuple["BaseConstraint"]]
     _params_: Optional[tuple[str]]
     _extras_: Optional[dict]
@@ -192,9 +191,6 @@ class field:
         return self
 
 
-# TODO: comb through these helper functions and think through how they are used, if caching can be used, do we need them, etc.
-# decide when to use function internally vs copying code
-
 # OPTIMIZATION: skip isinstance check to determine if instance or class
 # and use separate function depending on caller context. fine for internal
 # use in hot paths since the input type is usually known
@@ -215,23 +211,17 @@ def is_struct_class(cls) -> TypeIs[StructProto]:
         return result
 
 
-_empty_fields: MappingProxyType = MappingProxyType({})
-
-
 def get_fields(obj: type[StructProto] | StructProto) -> MappingProxyType[str, "field"]:
     """Return a mapping of field name and Field object.
 
     Accepts a model or an instance of one.
     """
-    try:
-        return MappingProxyType(getattr(obj, _FIELDS))
-    except AttributeError:
-        return _empty_fields
+    return MappingProxyType(obj._fields_)
 
 
 def get_names(obj: type[StructProto] | StructProto) -> tuple[str]:
     """Return a collection of the field names"""
-    return tuple(get_fields(obj))
+    return tuple(obj._fields_.keys())
 
 
 _empty_computed = frozenset()
@@ -239,24 +229,17 @@ _empty_computed = frozenset()
 
 def get_computed(obj: type[StructProto] | StructProto) -> frozenset[str]:
     """Return a set of field names on the model which are computed"""
-    try:
-        result = getattr(obj, _COMPUTED)
-    except (
-        AttributeError,
-        TypeError,
-    ):  # not set unless there is at least one computed field on regular class
+    result = getattr(obj, _COMPUTED, None)
+    if result is None:
         return _empty_computed
-    else:
-        if result is None:  # slotted class has this set to None by default
-            return _empty_computed
-        return frozenset(result)
+    return frozenset(result)
 
 
 def get_required(obj: type[StructProto] | StructProto) -> frozenset[str]:
     """Return a set of field names on the model which are required
     (i.e. their values must be given on init)"""
     return frozenset(
-        name for name, field in get_fields(obj).items() if field.is_required
+        name for name, field in obj._fields_.items() if field.is_required
     )
 
 
@@ -265,7 +248,7 @@ def get_optional(obj: type[StructProto] | StructProto) -> frozenset[str]:
     (i.e. they have default values or are computed so they dont have to be given on init)
     """
     return frozenset(
-        name for name, field in get_fields(obj).items() if not field.is_required
+        name for name, field in obj._fields_.items() if not field.is_required
     )
 
 
@@ -274,15 +257,15 @@ _default_setted = frozenset()
 
 def get_setted(obj: StructProto) -> frozenset[str]:
     """Return set of field names which were set in the model constructor."""
-    try:
-        return frozenset(getattr(obj, _SETTED))
+    try:  # setted not created unless there is at least one field and init called
+        return frozenset(obj._setted_)
     except AttributeError:
         return _default_setted
 
 
 def get_unsetted(obj: StructProto) -> frozenset[str]:
     """Return set of field names which were not set in the model constructor."""
-    return frozenset(getattr(obj, _FIELDS).keys() - get_setted(obj))
+    return frozenset(obj._fields_.keys() - get_setted(obj))
 
 
 def set_extras(obj: StructProto, extras: dict) -> None:
@@ -293,23 +276,16 @@ _extra_empty: MappingProxyType = MappingProxyType({})
 
 
 def get_extras(obj: StructProto) -> MappingProxyType:
-    try:
-        # extras not present a lot of the time so fallback to empty instead of using AttributeError
-        # to cut down on exception handling costs
-        return MappingProxyType(getattr(obj, _EXTRAS, _extra_empty))
-    except AttributeError:
-        return _extra_empty
+    # extras not present a lot of the time so fallback to empty instead of using AttributeError
+    # to cut down on exception handling costs
+    return MappingProxyType(getattr(obj, _EXTRAS, _extra_empty))
 
 
 def get_constraints(obj) -> Constraints:
-    try:
-        result = getattr(obj, _CONSTRAINTS)
-    except AttributeError:  # regular class, constraints attr not set unless defined
+    result = getattr(obj, _CONSTRAINTS, None)
+    if result is None:  # slotted class has this set to None by default
         return Constraints.empty
-    else:
-        if result is None:  # slotted class has this set to None by default
-            return Constraints.empty
-        return result
+    return result
 
 
 def __replace__(self, **changes):
@@ -324,38 +300,42 @@ def __replace__(self, **changes):
     return self.__class__(**changes)
 
 
+def __not_slotted_getitem__(self, name):
+    # should be a bit faster than getattr and *should* be safe since field values should 
+    # get stored in the instance dict
+    return self.__dict__[name]
+
+
+def __slotted_getitem__(self, name):
+    return self.__getattribute__(name)
+
+
+def __setattr__(self, name, value):
+    super(cls, self).__setattr__(name, value)  # type: ignore
+    # BUG FIX: we have to override for bookkeeping purposes. if field set to value after init
+    # we still need to make sure we add it to the set of setted fields. did not
+    # need in earlier design because structs were immutable
+    if getattr(self, _INITIALIZED, None) and name in self._fields_:
+        try:
+            self._setted_.add(name)
+        except AttributeError:
+            # avoid infinite loop
+            object.__setattr__(self, _SETTED, set((name,)))
+
+
 # cls is a global which is passed in when model defined. used to freeze setting anything
 # on that class instance, not just field names. this "resets" when it is subclassed and instead
 # only applies the constraint to the fields
 def __frozen_setattr__(self, name, value):
-    if self.__class__ is cls or name in getattr(self, _FIELDS):  # type: ignore
+    if self.__class__ is cls or name in self._fields_:  # type: ignore
         raise FrozenInstanceError(f"cannot assign to field {name!r}")
     return super(cls, self).__setattr__(name, value)  # type: ignore
 
 
 def __frozen_delattr__(self, name):
-    if self.__class__ is cls or name in getattr(self, _FIELDS):  # type: ignore
+    if self.__class__ is cls or name in self._fields_:  # type: ignore
         raise FrozenInstanceError(f"cannot delete field {name!r}")
     return super(cls, self).__delattr__(name)  # type: ignore
-
-
-def __getitem__(self, name):
-    try:
-        result = self.__dict__[name]
-    except KeyError:
-        raise KeyError(
-            f"Item, {name}, is not a valid field name for this struct."
-        ) from None
-    else:
-        if name not in getattr(self, _FIELDS):
-            raise KeyError(f"Item, {name}, is not a valid field name for this struct.")
-        return result
-
-
-def __setitem__(self, name, value):
-    if name not in getattr(self, _FIELDS):
-        raise KeyError(f"Item, {name}, is not a valid field name for this struct.")
-    self.__dict__[name] = value
 
 
 class _LazyDescriptor:
@@ -382,6 +362,8 @@ _lazy_ge = _LazyDescriptor("__ge__", "_create_comparator", ("__ge__",))
 _lazy_le = _LazyDescriptor("__le__", "_create_comparator", ("__le__",))
 _lazy_lt = _LazyDescriptor("__lt__", "_create_comparator", ("__lt__",))
 _lazy_repr = _LazyDescriptor("__repr__", "_create_repr")
+_lazy_setattr = _LazyDescriptor("__setattr__", "_create_setattr")
+_lazy_setitem = _LazyDescriptor("__setitem__", "_create_setitem")
 _lazy_frozen_setattr = _LazyDescriptor("__setattr__", "_create_frozen")
 _lazy_frozen_delattr = _LazyDescriptor("__delattr__", "_create_frozen")
 _lazy_hash = _LazyDescriptor("__hash__", "_create_hash")
@@ -428,6 +410,8 @@ class StructGenerator:
     ) -> dict[str, field]:
         fields_dict = {}
         for k in cls.__mro__[-1:0:-1]:
+            if not is_struct_class(k):
+                continue
             if k_fields := get_fields(k):
                 fields_dict.update(k_fields)
 
@@ -726,6 +710,48 @@ class StructGenerator:
             self._cache_repr_exact[exact_key] = func
         cls.__repr__ = func
 
+    def _create_setattr(
+        self,
+        cls,
+        init: bool,
+        repr: bool,
+        eq: bool,
+        order: bool,
+        frozen: bool,
+        kw_only: bool,
+        hash: bool,
+        replace: bool,
+        slots: bool,
+        getitem: bool,
+        setitem: bool,
+    ) -> None:
+        cls.__setattr__ = __setattr__.__class__(  # type: ignore
+            __setattr__.__code__,
+            {
+                "cls": cls,
+                "_FIELDS": _FIELDS,
+                "_INITIALIZED": _INITIALIZED,
+                "_SETTED": _SETTED,
+            },
+        )
+
+    def _create_setitem(
+        self,
+        cls,
+        init: bool,
+        repr: bool,
+        eq: bool,
+        order: bool,
+        frozen: bool,
+        kw_only: bool,
+        hash: bool,
+        replace: bool,
+        slots: bool,
+        getitem: bool,
+        setitem: bool,
+    ) -> None:
+        cls.__setitem__ = cls.__setattr__
+
     def _create_frozen(
         self,
         cls,
@@ -848,21 +874,36 @@ class StructGenerator:
             self._cache_hash_exact[exact_key] = func
         cls.__hash__ = func
 
-    def _create_init_no_fields_template(
+    def _create_init_no_fields_not_frozen_template(
         self, kw_only: bool, field_count: int, has_defaults: bool
     ) -> FunctionType:
-        code_str = "def __init__(self): pass"
+        code_str = (
+            "def __init__(self):\n"
+            f"    self.{_INITIALIZED} = True"
+        )
         exec(code_str, {}, l := {})
-        self._cache_init[(field_count, kw_only, has_defaults, True)] = (
-            template_function
-        ) = l.pop("__init__")
+        template_function = l.pop("__init__")
         self._cache_init[(field_count, kw_only, has_defaults, False)] = (
             template_function
         )
-        self._cache_init[(field_count, not kw_only, has_defaults, True)] = (
+        self._cache_init[(field_count, not kw_only, has_defaults, False)] = (
             template_function
         )
-        self._cache_init[(field_count, not kw_only, has_defaults, False)] = (
+        return template_function
+
+    def _create_init_no_fields_frozen_template(
+        self, kw_only: bool, field_count: int, has_defaults: bool
+    ) -> FunctionType:
+        code_str = (
+            "def __init__(self):\n"
+            f'    obj_setattr(self, "{_INITIALIZED}", True)'
+        )
+        exec(code_str, {"obj_setattr": object.__setattr__}, l := {})
+        template_function = l.pop("__init__")
+        self._cache_init[(field_count, kw_only, has_defaults, True)] = (
+            template_function
+        )
+        self._cache_init[(field_count, not kw_only, has_defaults, True)] = (
             template_function
         )
         return template_function
@@ -888,7 +929,8 @@ class StructGenerator:
             + "\n"
             + (
                 f"    if post_init := getattr(self, '{_POST_INIT}', None):\n"
-                "        post_init()"
+                "        post_init()\n"
+                f'    obj_setattr(self, "{_INITIALIZED}", True)'
             )
         )
         exec(
@@ -922,10 +964,15 @@ class StructGenerator:
             + "\n"
             + (
                 f"    if post_init := getattr(self, '{_POST_INIT}', None):\n"
-                "        post_init()"
+                "        post_init()\n"
+                f"    self.{_INITIALIZED} = True"
             )
         )
-        exec(code_str, {"MISSING": MISSING}, l := {})
+        exec(
+            code_str,
+            {"MISSING": MISSING},
+            l := {},
+        )
         self._cache_init[(field_count, kw_only, has_defaults, False)] = (
             template_function
         ) = l.pop("__init__")
@@ -943,7 +990,8 @@ class StructGenerator:
             + "\n"
             + (
                 f"    if post_init := getattr(self, '{_POST_INIT}', None):\n"
-                "        post_init()"
+                "        post_init()\n"
+                f'    obj_setattr(self, "{_INITIALIZED}", True)'
             )
         )
         exec(code_str, {"obj_setattr": object.__setattr__}, l := {})
@@ -961,7 +1009,8 @@ class StructGenerator:
             + "\n"
             + (
                 f"    if post_init := getattr(self, '{_POST_INIT}', None):\n"
-                "        post_init()"
+                "        post_init()\n"
+                f"    self.{_INITIALIZED} = True"
             )
         )
         exec(code_str, {}, l := {})
@@ -992,6 +1041,8 @@ class StructGenerator:
                     _SETTED,
                     *field_names,
                     _POST_INIT,
+                    _INITIALIZED,
+                    True,
                 ),
             ),
             template_function.__globals__  # type: ignore
@@ -1053,6 +1104,7 @@ class StructGenerator:
                         )
                     ),
                     "getattr",
+                    _INITIALIZED,
                 ),
                 co_varnames=(
                     "self",
@@ -1060,7 +1112,7 @@ class StructGenerator:
                     "setted",
                     "post_init",
                 ),
-                co_consts=(None, *field_names, _POST_INIT),
+                co_consts=(None, *field_names, _POST_INIT, True),
             ),
             template_function.__globals__  # type: ignore
             | dict((f"_field_{i}_default", d) for i, d in enumerate(field_defaults))
@@ -1105,7 +1157,7 @@ class StructGenerator:
                     *field_names,
                     "post_init",
                 ),
-                co_consts=(None, *field_names, _POST_INIT),
+                co_consts=(None, *field_names, _POST_INIT, _INITIALIZED, True),
             ),
             template_function.__globals__,
         )
@@ -1123,6 +1175,7 @@ class StructGenerator:
                 co_names=(
                     *field_names,
                     "getattr",
+                    _INITIALIZED,
                 ),
                 co_varnames=("self", *field_names, "post_init"),
             ),
@@ -1192,11 +1245,18 @@ class StructGenerator:
             except KeyError:
                 # special case: cannot use * for kw only if nothing follows it
                 if field_count == 0:
-                    template_function = self._create_init_no_fields_template(
-                        kw_only=kw_only,
-                        field_count=field_count,
-                        has_defaults=has_defaults,
-                    )
+                    if frozen:
+                        template_function = self._create_init_no_fields_frozen_template(
+                            kw_only=kw_only,
+                            field_count=field_count,
+                            has_defaults=has_defaults,
+                        )
+                    else:
+                        template_function = self._create_init_no_fields_not_frozen_template(
+                            kw_only=kw_only,
+                            field_count=field_count,
+                            has_defaults=has_defaults,
+                        )
                 elif has_defaults:
                     if frozen:
                         template_function = (
@@ -1390,14 +1450,19 @@ class StructGenerator:
         if frozen:
             cls.__setattr__ = _lazy_frozen_setattr
             cls.__delattr__ = _lazy_frozen_delattr
+        else:
+            cls.__setattr__ = _lazy_setattr
         if hash:
             cls.__hash__ = _lazy_hash
         if replace:
             cls.__replace__ = _lazy_replace
         if getitem:
-            cls.__getitem__ = __getitem__
+            if slots:
+                cls.__getitem__ = __slotted_getitem__
+            else:
+                cls.__getitem__ = __not_slotted_getitem__
         if setitem:
-            cls.__setitem__ = __setitem__
+            cls.__setitem__ = _lazy_setitem
         return cls
 
 
@@ -1485,10 +1550,10 @@ def create_struct(
 
     if module is None:
         try:
-            module = sys._getframemodulename(1) or '__main__'
+            module = sys._getframemodulename(1) or "__main__"
         except AttributeError:
             try:
-                module = sys._getframe(1).f_globals.get('__name__', '__main__')
+                module = sys._getframe(1).f_globals.get("__name__", "__main__")
             except (AttributeError, ValueError):
                 pass
     if module is not None:
