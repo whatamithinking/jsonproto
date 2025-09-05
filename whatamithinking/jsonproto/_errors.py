@@ -4,7 +4,7 @@ from itertools import groupby
 if TYPE_CHECKING:
     from ._issues import BaseIssue
     from ._common import BaseConstraint
-from ._struct import get_fields, get_names
+from ._struct import get_names
 
 
 __all__ = [
