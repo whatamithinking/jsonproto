@@ -30,6 +30,12 @@ def get_standard_classes_template(frozen: bool, slots: bool) -> str:
         {"def __setattr__(self, attr, value):" if frozen else ""}
         {"    raise AttributeError" if frozen else ""}
 
+        def __getitem__(self, attr):
+            return {"self.__getattribute__(attr)" if slots else "self.__dict__[attr]"}
+
+        def __setitem__(self, attr, value):
+            return self.__setattr__(attr, value)
+
         def __repr__(self):
             return (
                 f"{{{{type(self).__name__}}}}(a={{{{self.a!r}}}}, b={{{{self.b!r}}}}, "
@@ -196,7 +202,7 @@ def get_jsonproto_template(frozen: bool, slots: bool) -> str:
     import whatamithinking.jsonproto as jp
     
     
-    @jp.struct(init=True, repr=True, eq=True, order=True, frozen={frozen}, kw_only=True, hash=True, slots={slots})
+    @jp.struct(init=True, repr=True, eq=True, order=True, frozen={frozen}, kw_only=True, hash=True, slots={slots}, getitem=True, setitem=True)
     class C{{n}}:
         a: int
         b: int
@@ -211,7 +217,7 @@ class Benchmark(NamedTuple):
     library: str | None
     get_template: Callable[[bool], str]
     n_classes: int = 50
-    n: int = 100
+    n: int = 500
     m: int = 100
 
 
@@ -235,7 +241,7 @@ def benchpress(name, template, n_classes, n, m):
 
     define_time = init_time = equality_time = order_time = repr_time = hash_time = (
         getattr_time
-    ) = setattr_time = None
+    ) = getitem_time = setattr_time = setitem_time = None
 
     # Benchmark defining new types
     start = perf_counter()
@@ -253,7 +259,9 @@ def benchpress(name, template, n_classes, n, m):
                 repr_time,
                 hash_time,
                 getattr_time,
+                getitem_time,
                 setattr_time,
+                setitem_time,
             )
     end = perf_counter()
     define_time = ((end - start) / (n * n_classes)) * 1e6
@@ -292,8 +300,8 @@ def benchpress(name, template, n_classes, n, m):
         order_time = ((end - start) / (n * m)) * 1e6
 
     # Benchmark repr
-    start = perf_counter()
     inst = C(a=1, b=2, c=3, d=4, e=5)
+    start = perf_counter()
     for _ in range(n * m):
         repr(inst)
     end = perf_counter()
@@ -313,8 +321,8 @@ def benchpress(name, template, n_classes, n, m):
         hash_time = ((end - start) / (n * m)) * 1e6
 
     # Benchmark getattr
-    start = perf_counter()
     inst = C(a=1, b=2, c=3, d=4, e=5)
+    start = perf_counter()
     for _ in range(n * m):
         inst.a
         inst.b
@@ -324,9 +332,25 @@ def benchpress(name, template, n_classes, n, m):
     end = perf_counter()
     getattr_time = ((end - start) / (n * m)) * 1e6
 
+    # Benchmark getitem
+    try:
+        inst = C(a=1, b=2, c=3, d=4, e=5)
+        start = perf_counter()
+        for _ in range(n * m):
+            inst["a"]
+            inst["b"]
+            inst["c"]
+            inst["d"]
+            inst["e"]
+    except:
+        getitem_time = None
+    else:
+        end = perf_counter()
+        getitem_time = ((end - start) / (n * m)) * 1e6
+
     # Benchmark setattr
-    start = perf_counter()
     inst = C(a=1, b=2, c=3, d=4, e=5)
+    start = perf_counter()
     try:
         for _ in range(n * m):
             inst.a = 10
@@ -340,6 +364,22 @@ def benchpress(name, template, n_classes, n, m):
         end = perf_counter()
         setattr_time = ((end - start) / (n * m)) * 1e6
 
+    # Benchmark setitem
+    start = perf_counter()
+    inst = C(a=1, b=2, c=3, d=4, e=5)
+    try:
+        for _ in range(n * m):
+            inst["a"] = 10
+            inst["b"] = 10
+            inst["c"] = 10
+            inst["d"] = 10
+            inst["e"] = 10
+    except:
+        setitem_time = None
+    else:
+        end = perf_counter()
+        setitem_time = ((end - start) / (n * m)) * 1e6
+
     return (
         name,
         define_time,
@@ -349,7 +389,9 @@ def benchpress(name, template, n_classes, n, m):
         repr_time,
         hash_time,
         getattr_time,
+        getitem_time,
         setattr_time,
+        setitem_time,
     )
 
 
@@ -363,7 +405,9 @@ def format_table(results, frozen: bool, slots: bool):
         "repr (us)",
         "hash (us)",
         "getattr (us)",
+        "getitem (us)",
         "setattr (us)",
+        "setitem (us)",
     )
 
     def f(n):
