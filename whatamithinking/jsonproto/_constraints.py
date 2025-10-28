@@ -58,7 +58,7 @@ T_ConstraintType = Literal[
     "server",
     "interface",
     "disjoint",
-    "depend",
+    "dependent",
 ]
 T_ConstraintId = Literal[
     "value_eq",
