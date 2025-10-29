@@ -365,7 +365,6 @@ _lazy_ge = _LazyDescriptor("__ge__", "_create_comparator", ("__ge__",))
 _lazy_le = _LazyDescriptor("__le__", "_create_comparator", ("__le__",))
 _lazy_lt = _LazyDescriptor("__lt__", "_create_comparator", ("__lt__",))
 _lazy_repr = _LazyDescriptor("__repr__", "_create_repr")
-_lazy_setattr = _LazyDescriptor("__setattr__", "_create_setattr")
 _lazy_setitem = _LazyDescriptor("__setitem__", "_create_setitem")
 _lazy_frozen_setattr = _LazyDescriptor("__setattr__", "_create_frozen")
 _lazy_frozen_delattr = _LazyDescriptor("__delattr__", "_create_frozen")
@@ -732,7 +731,6 @@ class StructGenerator:
             __setattr__.__code__,
             {
                 "cls": cls,
-                "_FIELDS": _FIELDS,
                 "_INITIALIZED": _INITIALIZED,
                 "_SETTED": _SETTED,
             },
@@ -880,7 +878,7 @@ class StructGenerator:
     def _create_init_no_fields_not_frozen_template(
         self, kw_only: bool, field_count: int, has_optional: bool
     ) -> FunctionType:
-        code_str = "def __init__(self):\n" f"    self.{_INITIALIZED} = True"
+        code_str = f"def __init__(self):\n    self.{_INITIALIZED} = True"
         exec(code_str, {}, l := {})
         template_function = l.pop("__init__")
         self._cache_init[(field_count, kw_only, has_optional, False)] = (
@@ -894,9 +892,7 @@ class StructGenerator:
     def _create_init_no_fields_frozen_template(
         self, kw_only: bool, field_count: int, has_optional: bool
     ) -> FunctionType:
-        code_str = (
-            "def __init__(self):\n" f'    obj_setattr(self, "{_INITIALIZED}", True)'
-        )
+        code_str = f"def __init__(self):\n    obj_setattr(self, {_INITIALIZED!r}, True)"
         exec(code_str, {"obj_setattr": object.__setattr__}, l := {})
         template_function = l.pop("__init__")
         self._cache_init[(field_count, kw_only, has_optional, True)] = template_function
@@ -1380,9 +1376,7 @@ class StructGenerator:
         # which are a bit slower due to dynamic code generation
         if constraints:
             cls._constraints_ = Constraints(constraints)
-        cls._params_ = (
-            self,
-            (
+        args = (
                 init,
                 repr,
                 eq,
@@ -1394,7 +1388,10 @@ class StructGenerator:
                 slots,
                 getitem,
                 setitem,
-            ),
+            )
+        cls._params_ = (
+            self,
+            args
         )
         cls._fields_ = _lazy_fields
         if slots:
@@ -1417,7 +1414,8 @@ class StructGenerator:
             cls.__setattr__ = _lazy_frozen_setattr
             cls.__delattr__ = _lazy_frozen_delattr
         else:
-            cls.__setattr__ = _lazy_setattr
+            # BUG FIX: materialize __setattr__ immediately when mutable to avoid infinite recursion 
+            self._create_setattr(cls, *args)
         if hash:
             cls.__hash__ = _lazy_hash
         if replace:
