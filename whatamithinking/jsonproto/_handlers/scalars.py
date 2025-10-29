@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from .._codec import Config
 
 from .._pointers import JsonPointer
-from .._common import MISSING_TYPE, MISSING
+from .._common import Empty
 from .._issues import (
     JsonTypeIssue,
     BaseIssue,
@@ -59,9 +59,9 @@ class BoolHandler(TypeHandler):
         included: bool,
         excluded: bool,
         config: "Config",
-    ) -> tuple[Any | MISSING_TYPE, list[BaseIssue]]:
+    ) -> tuple[Any | Empty, list[BaseIssue]]:
         if not included or excluded:
-            return MISSING, []
+            return Empty, []
         issues = []
         if value.__class__ is not bool:
             if config.source == "json":
@@ -92,9 +92,9 @@ class NoneHandler(TypeHandler):
         included: bool,
         excluded: bool,
         config: "Config",
-    ) -> tuple[Any | MISSING_TYPE, list[BaseIssue]]:
+    ) -> tuple[Any | Empty, list[BaseIssue]]:
         if not included or excluded:
-            return MISSING, []
+            return Empty, []
         issues = []
         if value.__class__ not in (None, NoneType):
             if config.source == "json":
@@ -154,10 +154,10 @@ class EnumHandler(TypeHandler):
         included: bool,
         excluded: bool,
         config: "Config",
-    ) -> tuple[Any | MISSING_TYPE, list[BaseIssue]]:
+    ) -> tuple[Any | Empty, list[BaseIssue]]:
         issues = []
         if not included or excluded:
-            return MISSING, issues
+            return Empty, issues
         cvalue = value
         if config.source == "json":
             cvalue, cissues = self._type_handler.handle(

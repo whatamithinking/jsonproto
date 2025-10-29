@@ -19,7 +19,7 @@ import sys
 from lru import LRU
 
 from ._common import (
-    MISSING,
+    Empty,
     get_annotations,
     Constraints,
     BaseConstraint,
@@ -106,8 +106,8 @@ class field:
     # a ton of setattr calls slowing down initial model creation
     name = None
     type_hint = None
-    default = MISSING
-    default_factory = MISSING
+    default = Empty
+    default_factory = Empty
     slots = False
     init = False
     repr = False
@@ -129,11 +129,16 @@ class field:
             self.is_cached = cache
 
     @property
-    def is_required(self):
+    def is_required(self) -> bool:
+        # if Required constraint explicitly provided, base off that; otherwise
+        # we infer based on other settings
+        required = self.constraints.get("required")
+        if required is not None:
+            return required.value
         return (
             not self.is_computed
-            and self.default is MISSING
-            and self.default_factory is MISSING
+            and self.default is Empty
+            and self.default_factory is Empty
         )
 
     def __repr__(self):
@@ -163,7 +168,7 @@ class field:
             setname(owner, name)
         if (computed := getattr(owner, _COMPUTED, None)) is None:
             computed = set()
-            setattr(owner, _COMPUTED, computed)
+            owner._computed_ = computed
         computed.add(name)
 
     def __get__(self, instance: Any, owner: type | None = None, /) -> Any:
@@ -238,9 +243,7 @@ def get_computed(obj: type[StructProto] | StructProto) -> frozenset[str]:
 def get_required(obj: type[StructProto] | StructProto) -> frozenset[str]:
     """Return a set of field names on the model which are required
     (i.e. their values must be given on init)"""
-    return frozenset(
-        name for name, field in obj._fields_.items() if field.is_required
-    )
+    return frozenset(name for name, field in obj._fields_.items() if field.is_required)
 
 
 def get_optional(obj: type[StructProto] | StructProto) -> frozenset[str]:
@@ -301,7 +304,7 @@ def __replace__(self, **changes):
 
 
 def __not_slotted_getitem__(self, name):
-    # should be a bit faster than getattr and *should* be safe since field values should 
+    # should be a bit faster than getattr and *should* be safe since field values should
     # get stored in the instance dict
     return self.__dict__[name]
 
@@ -435,7 +438,7 @@ class StructGenerator:
                 {
                     "name": fn,
                     "type_hint": type_hint,
-                    "default": cls_dict_get(fn, MISSING),
+                    "default": cls_dict_get(fn, Empty),
                 }
             )
             constraints = Constraints.empty
@@ -447,17 +450,17 @@ class StructGenerator:
                 ]
                 if constraints_args:
                     constraints = Constraints(constraints_args)
-                    if field_attrs.get("default", MISSING) is MISSING:
-                        if (
-                            default := constraints.get("default", MISSING)
-                        ) is not MISSING:
+                    if field_attrs.get("default", Empty) is Empty:
+                        if (default := constraints.get("default", Empty)) is not Empty:
                             field_attrs["default"] = default.value
                         if (
-                            default_factory := constraints.get(
-                                "default_factory", MISSING
-                            )
-                        ) is not MISSING:
+                            default_factory := constraints.get("default_factory", Empty)
+                        ) is not Empty:
                             field_attrs["default_factory"] = default_factory.value
+                # NOTE: do not set default value as class attr if not already set and instead
+                # always set on struct instance to speed up getting values from struct through __dict__
+                # accessing field values probably more common and done more often so likely (?)
+                # worth the extra memory per instance and overhead on init in setting attrs
             field_attrs["constraints"] = constraints
             f = field()
             f.__dict__.update(field_attrs)
@@ -494,7 +497,7 @@ class StructGenerator:
             )
             fields_dict[fn] = f
 
-        setattr(cls, _FIELDS, fields_dict)
+        cls._fields_ = fields_dict
         return fields_dict
 
     def _create_comparator(
@@ -875,52 +878,46 @@ class StructGenerator:
         cls.__hash__ = func
 
     def _create_init_no_fields_not_frozen_template(
-        self, kw_only: bool, field_count: int, has_defaults: bool
+        self, kw_only: bool, field_count: int, has_optional: bool
     ) -> FunctionType:
-        code_str = (
-            "def __init__(self):\n"
-            f"    self.{_INITIALIZED} = True"
-        )
+        code_str = "def __init__(self):\n" f"    self.{_INITIALIZED} = True"
         exec(code_str, {}, l := {})
         template_function = l.pop("__init__")
-        self._cache_init[(field_count, kw_only, has_defaults, False)] = (
+        self._cache_init[(field_count, kw_only, has_optional, False)] = (
             template_function
         )
-        self._cache_init[(field_count, not kw_only, has_defaults, False)] = (
+        self._cache_init[(field_count, not kw_only, has_optional, False)] = (
             template_function
         )
         return template_function
 
     def _create_init_no_fields_frozen_template(
-        self, kw_only: bool, field_count: int, has_defaults: bool
+        self, kw_only: bool, field_count: int, has_optional: bool
     ) -> FunctionType:
         code_str = (
-            "def __init__(self):\n"
-            f'    obj_setattr(self, "{_INITIALIZED}", True)'
+            "def __init__(self):\n" f'    obj_setattr(self, "{_INITIALIZED}", True)'
         )
         exec(code_str, {"obj_setattr": object.__setattr__}, l := {})
         template_function = l.pop("__init__")
-        self._cache_init[(field_count, kw_only, has_defaults, True)] = (
-            template_function
-        )
-        self._cache_init[(field_count, not kw_only, has_defaults, True)] = (
+        self._cache_init[(field_count, kw_only, has_optional, True)] = template_function
+        self._cache_init[(field_count, not kw_only, has_optional, True)] = (
             template_function
         )
         return template_function
 
-    def _create_init_has_defaults_frozen_template(
-        self, kw_only: bool, field_count: int, has_defaults: bool
+    def _create_init_has_optional_frozen_template(
+        self, kw_only: bool, field_count: int, has_optional: bool
     ) -> FunctionType:
         code_str = (
             f"def __init__(self, {'*, ' if kw_only else ''}{', '.join(f'_field_{i}' for i in range(field_count))}):\n"
             + "    setted = set()\n"
             + f'    obj_setattr(self, "{_SETTED}", setted)\n'
             + "\n".join(
-                f"    if _field_{i} is MISSING:\n"
-                f"        if _field_{i}_default is not MISSING:\n"
-                f'            obj_setattr(self, "_field_{i}", _field_{i}_default)\n'
-                f"        else:\n"
+                f"    if _field_{i} is Empty:\n"
+                f"        if _field_{i}_default_factory is not Empty:\n"
                 f'            obj_setattr(self, "_field_{i}", _field_{i}_default_factory())\n'
+                f"        else:\n"
+                f'            obj_setattr(self, "_field_{i}", _field_{i}_default)\n'
                 f"    else:\n"
                 f'        setted.add("_field_{i}")\n'
                 f'        obj_setattr(self, "_field_{i}", _field_{i})'
@@ -935,27 +932,27 @@ class StructGenerator:
         )
         exec(
             code_str,
-            {"MISSING": MISSING, "obj_setattr": object.__setattr__},
+            {"Empty": Empty, "obj_setattr": object.__setattr__},
             l := {},  # type: ignore
         )
-        self._cache_init[(field_count, kw_only, has_defaults, True)] = (
+        self._cache_init[(field_count, kw_only, has_optional, True)] = (
             template_function
         ) = l.pop("__init__")
         return template_function
 
-    def _create_init_has_defaults_not_frozen_template(
-        self, kw_only: bool, field_count: int, has_defaults: bool
+    def _create_init_has_optional_not_frozen_template(
+        self, kw_only: bool, field_count: int, has_optional: bool
     ) -> FunctionType:
         code_str = (
             f"def __init__(self, {'*, ' if kw_only else ''}{', '.join(f'_field_{i}' for i in range(field_count))}):\n"
             + "    setted = set()\n"
             + f"    self.{_SETTED} = setted\n"
             + "\n".join(
-                f"    if _field_{i} is MISSING:\n"
-                f"        if _field_{i}_default is not MISSING:\n"
-                f"            self._field_{i} = _field_{i}_default\n"
-                f"        else:\n"
+                f"    if _field_{i} is Empty:\n"
+                f"        if _field_{i}_default_factory is not Empty:\n"
                 f"            self._field_{i} = _field_{i}_default_factory()\n"
+                f"        else:\n"
+                f"            self._field_{i} = _field_{i}_default\n"
                 f"    else:\n"
                 f'        setted.add("_field_{i}")\n'
                 f"        self._field_{i} = _field_{i}"
@@ -970,16 +967,16 @@ class StructGenerator:
         )
         exec(
             code_str,
-            {"MISSING": MISSING},
+            {"Empty": Empty},
             l := {},
         )
-        self._cache_init[(field_count, kw_only, has_defaults, False)] = (
+        self._cache_init[(field_count, kw_only, has_optional, False)] = (
             template_function
         ) = l.pop("__init__")
         return template_function
 
-    def _create_init_no_defaults_frozen_template(
-        self, kw_only: bool, field_count: int, has_defaults: bool
+    def _create_init_no_optional_frozen_template(
+        self, kw_only: bool, field_count: int, has_optional: bool
     ) -> FunctionType:
         code_str = (
             f"def __init__(self, {'*, ' if kw_only else ''}{', '.join(f'_field_{i}' for i in range(field_count))}):\n"
@@ -995,13 +992,13 @@ class StructGenerator:
             )
         )
         exec(code_str, {"obj_setattr": object.__setattr__}, l := {})
-        self._cache_init[(field_count, kw_only, has_defaults, True)] = (
+        self._cache_init[(field_count, kw_only, has_optional, True)] = (
             template_function
         ) = l.pop("__init__")
         return template_function
 
-    def _create_init_no_defaults_not_frozen_template(
-        self, kw_only: bool, field_count: int, has_defaults: bool
+    def _create_init_no_optional_not_frozen_template(
+        self, kw_only: bool, field_count: int, has_optional: bool
     ) -> FunctionType:
         code_str = (
             f"def __init__(self, {'*, ' if kw_only else ''}{', '.join(f'_field_{i}' for i in range(field_count))}):\n"
@@ -1014,12 +1011,12 @@ class StructGenerator:
             )
         )
         exec(code_str, {}, l := {})
-        self._cache_init[(field_count, kw_only, has_defaults, False)] = (
+        self._cache_init[(field_count, kw_only, has_optional, False)] = (
             template_function
         ) = l.pop("__init__")
         return template_function
 
-    def _fill_init_has_defaults_frozen_template(
+    def _fill_init_has_optional_frozen_template(
         self,
         init_exact_key: tuple,
         template_function: FunctionType,
@@ -1027,6 +1024,7 @@ class StructGenerator:
         field_defaults: tuple,
         field_default_factories: tuple,
         kw_only: bool,
+        optional_names: tuple[str],
     ) -> FunctionType:
         func = template_function.__class__(  # type: ignore
             template_function.__code__.replace(  # type: ignore
@@ -1053,29 +1051,13 @@ class StructGenerator:
             ),
         )
         if kw_only:
-            func.__kwdefaults__ = (  # type: ignore
-                dict(
-                    (k, MISSING)
-                    for k, d, df in zip(
-                        field_names, field_defaults, field_default_factories
-                    )
-                    if d is not MISSING or df is not MISSING
-                )
-                or None
-            )
+            func.__kwdefaults__ = dict.fromkeys(optional_names, Empty) or None
         else:
-            func.__defaults__ = (  # type: ignore
-                tuple(
-                    MISSING
-                    for d, df in zip(field_defaults, field_default_factories)
-                    if d is not MISSING or df is not MISSING
-                )
-                or None
-            )
+            func.__defaults__ = ((Empty,) * len(optional_names)) or None
         self._cache_init_exact[init_exact_key] = func
         return func
 
-    def _fill_init_has_defaults_not_frozen_template(
+    def _fill_init_has_optional_not_frozen_template(
         self,
         init_exact_key: tuple,
         template_function: FunctionType,
@@ -1083,24 +1065,25 @@ class StructGenerator:
         field_defaults: tuple,
         field_default_factories: tuple,
         kw_only: bool,
+        optional_names: tuple[str],
     ) -> FunctionType:
         func = template_function.__class__(  # type: ignore
             template_function.__code__.replace(  # type: ignore
                 co_names=(
                     "set",
                     _SETTED,
-                    "MISSING",
-                    f"_field_0_default",
-                    field_names[0],
+                    "Empty",
                     f"_field_0_default_factory",
+                    field_names[0],
+                    f"_field_0_default",
                     "add",
                     *tuple(
                         con
                         for i, field_name in enumerate(field_names[1:])
                         for con in (
-                            f"_field_{i+1}_default",
-                            field_name,
                             f"_field_{i+1}_default_factory",
+                            field_name,
+                            f"_field_{i+1}_default",
                         )
                     ),
                     "getattr",
@@ -1122,25 +1105,9 @@ class StructGenerator:
             ),
         )
         if kw_only:
-            func.__kwdefaults__ = (  # type: ignore
-                dict(
-                    (k, MISSING)
-                    for k, d, df in zip(
-                        field_names, field_defaults, field_default_factories
-                    )
-                    if d is not MISSING or df is not MISSING
-                )
-                or None
-            )
+            func.__kwdefaults__ = dict.fromkeys(optional_names, Empty) or None
         else:
-            func.__defaults__ = (  # type: ignore
-                tuple(
-                    MISSING
-                    for d, df in zip(field_defaults, field_default_factories)
-                    if d is not MISSING or df is not MISSING
-                )
-                or None
-            )
+            func.__defaults__ = ((Empty,) * len(optional_names)) or None
         self._cache_init_exact[init_exact_key] = func
         return func
 
@@ -1223,24 +1190,23 @@ class StructGenerator:
             # to use kwargs or something in init so this is not an issue, but should generally just
             # stick to keyword only when possible anyway
             if not kw_only:
-                defaulted = None
+                first_optional_name = None
                 for f in fields_dict.values():
-                    if f.is_computed:
-                        continue
-                    if f.default is not MISSING or f.default_factory is not MISSING:
-                        defaulted = f.name
-                    elif defaulted:
+                    if not f.is_required:
+                        first_optional_name = f.name
+                    elif first_optional_name:
                         raise TypeError(
-                            f"non-default argument, {f.name!r}, "
-                            f"follows default argument, {defaulted!r}, in model, {cls!r}"
+                            f"required field, {f.name!r}, "
+                            f"after optional field, {first_optional_name!r}, in model, {cls!r}"
                         )
-            has_defaults = any(_ is not MISSING for _ in field_defaults) or any(
-                _ is not MISSING for _ in field_default_factories
+            optional_names = tuple(
+                fn for fn in field_names if not fields_dict[fn].is_required
             )
+            has_optional = bool(optional_names)
             field_count = len(field_names)
             try:
                 template_function = self._cache_init[
-                    (field_count, kw_only, has_defaults, frozen)
+                    (field_count, kw_only, has_optional, frozen)
                 ]
             except KeyError:
                 # special case: cannot use * for kw only if nothing follows it
@@ -1249,70 +1215,74 @@ class StructGenerator:
                         template_function = self._create_init_no_fields_frozen_template(
                             kw_only=kw_only,
                             field_count=field_count,
-                            has_defaults=has_defaults,
+                            has_optional=has_optional,
                         )
                     else:
-                        template_function = self._create_init_no_fields_not_frozen_template(
-                            kw_only=kw_only,
-                            field_count=field_count,
-                            has_defaults=has_defaults,
-                        )
-                elif has_defaults:
-                    if frozen:
                         template_function = (
-                            self._create_init_has_defaults_frozen_template(
+                            self._create_init_no_fields_not_frozen_template(
                                 kw_only=kw_only,
                                 field_count=field_count,
-                                has_defaults=has_defaults,
+                                has_optional=has_optional,
+                            )
+                        )
+                elif has_optional:
+                    if frozen:
+                        template_function = (
+                            self._create_init_has_optional_frozen_template(
+                                kw_only=kw_only,
+                                field_count=field_count,
+                                has_optional=has_optional,
                             )
                         )
                     else:
                         template_function = (
-                            self._create_init_has_defaults_not_frozen_template(
+                            self._create_init_has_optional_not_frozen_template(
                                 kw_only=kw_only,
                                 field_count=field_count,
-                                has_defaults=has_defaults,
+                                has_optional=has_optional,
                             )
                         )
                 else:
                     if frozen:
                         template_function = (
-                            self._create_init_no_defaults_frozen_template(
+                            self._create_init_no_optional_frozen_template(
                                 kw_only=kw_only,
                                 field_count=field_count,
-                                has_defaults=has_defaults,
+                                has_optional=has_optional,
                             )
                         )
                     else:
                         template_function = (
-                            self._create_init_no_defaults_not_frozen_template(
+                            self._create_init_no_optional_not_frozen_template(
                                 kw_only=kw_only,
                                 field_count=field_count,
-                                has_defaults=has_defaults,
+                                has_optional=has_optional,
                             )
                         )
             # NOTE: should maybe technically replace _field_{x}_default_factory with field_name_default_factory
             # but this works as-is and no one will see it so skipping
             if field_count == 0:
                 func = template_function
-            elif has_defaults:
+            elif has_optional:
                 if frozen:
-                    func = self._fill_init_has_defaults_frozen_template(
+                    func = self._fill_init_has_optional_frozen_template(
                         init_exact_key=init_exact_key,
                         template_function=template_function,
                         field_names=field_names,
                         field_defaults=field_defaults,
                         field_default_factories=field_default_factories,
                         kw_only=kw_only,
+                        optional_names=optional_names,
                     )
                 else:
-                    func = self._fill_init_has_defaults_not_frozen_template(
+                    func = self._fill_init_has_optional_not_frozen_template(
                         init_exact_key=init_exact_key,
                         template_function=template_function,
                         field_names=field_names,
                         field_defaults=field_defaults,
                         field_default_factories=field_default_factories,
                         kw_only=kw_only,
+                        optional_names=optional_names,
                     )
             else:
                 if frozen:
@@ -1409,28 +1379,24 @@ class StructGenerator:
         # since during building of codec we only need the fields and can skip building the methods
         # which are a bit slower due to dynamic code generation
         if constraints:
-            setattr(cls, _CONSTRAINTS, Constraints(constraints))
-        setattr(
-            cls,
-            _PARAMS,
+            cls._constraints_ = Constraints(constraints)
+        cls._params_ = (
+            self,
             (
-                self,
-                (
-                    init,
-                    repr,
-                    eq,
-                    order,
-                    frozen,
-                    kw_only,
-                    hash,
-                    replace,
-                    slots,
-                    getitem,
-                    setitem,
-                ),
+                init,
+                repr,
+                eq,
+                order,
+                frozen,
+                kw_only,
+                hash,
+                replace,
+                slots,
+                getitem,
+                setitem,
             ),
         )
-        setattr(cls, _FIELDS, _lazy_fields)
+        cls._fields_ = _lazy_fields
         if slots:
             # __slots__ must be defined when the class is created or it has no effect
             # using a proxy to do lazy loading would defeat perf gains and create problems when importing

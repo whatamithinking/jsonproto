@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 from .._common import identity
 from .._errors import ConstraintError
 from .._pointers import JsonPointer
-from .._common import MISSING_TYPE, MISSING
+from .._common import Empty
 from .._issues import (
     DecodingIssue,
     EncodingIssue,
@@ -248,10 +248,10 @@ class BytesLikeHandler(TypeHandler):
         included: bool,
         excluded: bool,
         config: "Config",
-    ) -> tuple[Any | MISSING_TYPE, list[BaseIssue]]:
+    ) -> tuple[Any | Empty, list[BaseIssue]]:
         issues = []
         if not included or excluded:
-            return MISSING, issues
+            return Empty, issues
         converted = coerced = value
         if config.coerce:
             converted = coerced = self.coerce(value=value, pointer=pointer, config=config)

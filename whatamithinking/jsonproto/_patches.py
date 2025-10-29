@@ -3,7 +3,7 @@ from typing import Literal, Any, Union
 from lru import LRU
 
 from ._pointers import JsonPath, JsonPointer
-from ._common import MISSING
+from ._common import Empty
 
 __all__ = ["Patches"]
 
@@ -115,9 +115,9 @@ class Patches:
                     if patch_path.matches(pointer):
                         break
                 else:
-                    patch_value = MISSING
+                    patch_value = Empty
                 self._cache[cache_key] = patch_value
-            if patch_value is not MISSING:
+            if patch_value is not Empty:
                 return patch_value
         return value
 

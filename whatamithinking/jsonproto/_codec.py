@@ -30,8 +30,7 @@ from ._common import (
     T_CodecTargetFormat,
     T_CodecSerializationFormat,
     Metadata,
-    MISSING_TYPE,
-    MISSING,
+    Empty,
 )
 from ._resolver import TypeHintResolution, resolve_type_hint
 from ._struct import struct, is_struct_instance, is_struct_class
@@ -136,14 +135,14 @@ class Codec:
         self,
         type_handler_class: type["TypeHandler"],
         /,
-        type_hint: T_FuzzyTypeHint | MISSING_TYPE = MISSING,
-        callback: T_IsTypeCallback | MISSING_TYPE = MISSING,
+        type_hint: T_FuzzyTypeHint | Empty = Empty,
+        callback: T_IsTypeCallback | Empty = Empty,
     ) -> None:
-        if type_hint is MISSING and callback is MISSING:
+        if type_hint is Empty and callback is Empty:
             raise ValueError("one of type_hint or callback must be given")
-        elif type_hint is not MISSING and callback is not MISSING:
+        elif type_hint is not Empty and callback is not Empty:
             raise ValueError("either type_hint or callback must be given, not both")
-        if type_hint is not MISSING:
+        if type_hint is not Empty:
             thr = resolve_type_hint(type_hint=type_hint)
             if thr.is_partial:
                 raise TypeError(
@@ -200,7 +199,7 @@ class Codec:
         self,
         type_hint: T_FuzzyTypeHint,
         constraints: Constraints = Constraints.empty,
-        type_hint_value: T_TypeHintValue = MISSING,
+        type_hint_value: T_TypeHintValue = Empty,
     ) -> "TypeHandler":
         try:
             return self._cache_handlers[(type_hint, constraints, type_hint_value)]
@@ -213,12 +212,12 @@ class Codec:
             # and use it to index off of and create a new type handler for each one since the default
             # needs to be provided to each instance of the type handler
             if type_hint_resolution.origin in (ClassVar, Final):
-                if type_hint_value is MISSING:
+                if type_hint_value is Empty:
                     raise ValueError(
                         "type_hint_value must be given when getting the type handler for ClassVar or Final"
                     )
-            elif type_hint_value is not MISSING:
-                type_hint_value = MISSING  # always ignore the value otherwise so instances dont explode
+            elif type_hint_value is not Empty:
+                type_hint_value = Empty  # always ignore the value otherwise so instances dont explode
                 try:
                     return self._cache_handlers[
                         (type_hint, constraints, type_hint_value)
@@ -291,11 +290,11 @@ class Codec:
     def execute(
         self,
         value: Any,
-        type_hint: T_UnresolvedTypeHint = MISSING,
-        type_hint_value: T_TypeHintValue = MISSING,
+        type_hint: T_UnresolvedTypeHint = Empty,
+        type_hint_value: T_TypeHintValue = Empty,
         metadata: Metadata = Metadata(),
-        source: T_CodecSourceFormat = MISSING,
-        target: T_CodecTargetFormat = MISSING,
+        source: T_CodecSourceFormat = Empty,
+        target: T_CodecTargetFormat = Empty,
         coerce: bool = False,
         validate: bool = False,
         convert: bool = False,
@@ -309,10 +308,10 @@ class Codec:
     ) -> Any:
         if not coerce and not validate and not convert:
             return value
-        if type_hint is MISSING:
+        if type_hint is Empty:
             if is_struct_instance(value):
                 type_hint = value.__class__
-                if source is MISSING:
+                if source is Empty:
                     source = "struct"
             else:
                 # while it may be possible to guess the type hint in some cases, it may be slow
@@ -321,7 +320,7 @@ class Codec:
                 raise ValueError(
                     "type_hint must be given when value is not a model instance"
                 )
-        if source is MISSING:
+        if source is Empty:
             if is_struct_instance(value):
                 source = "struct"
             else:
@@ -335,7 +334,7 @@ class Codec:
                     # fields and values OR it is a dict of python types. no great way to tell
                     # in a reliable way one or the other
                     raise ValueError("source format cannot be inferred, please explicitly provide it.")
-        if target is MISSING:
+        if target is Empty:
             target = source
         # NOTE: source and target are allowed to be the same thing, so we can perform a copy
         pointer = JsonPointer.root
@@ -391,7 +390,7 @@ class Codec:
         if patches:
             value = patches.patch("target", "value", pointer, value)
 
-        if (included and not excluded) or value is not MISSING:
+        if (included and not excluded) or value is not Empty:
             if target in ("jsonstr", "jsonbytes"):
                 if source == target:
                     return raw_value

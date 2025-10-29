@@ -78,7 +78,7 @@ class JsonPointer:
         try:
             return self._repr
         except AttributeError:
-            self._repr = f"JsonPointer({self._str!r})"
+            self._repr = f"JsonPointer({self.__str__()!r})"
             return self._repr
 
     def __hash__(self) -> int:

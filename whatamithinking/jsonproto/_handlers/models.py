@@ -18,10 +18,9 @@ from .._struct import (
     get_required,
     get_names,
 )
-from .._common import MISSING, get_alias
+from .._common import Empty, get_alias
 from .._resolver import resolve_type_hint
 from .._pointers import JsonPointer
-from .._common import MISSING_TYPE, MISSING
 from .._issues import (
     JsonTypeIssue,
     BaseIssue,
@@ -152,7 +151,7 @@ class ModelHandler(TypeHandler):
         included: bool,
         excluded: bool,
         config: "Config",
-    ) -> tuple[Any | MISSING_TYPE, list[BaseIssue]]:
+    ) -> tuple[Any | Empty, list[BaseIssue]]:
         issues = []
         cvalue = value
         if config.coerce:
@@ -242,10 +241,10 @@ class ModelHandler(TypeHandler):
             if type_handler_info is not None:
                 name, alias, default, type_handler = type_handler_info
             else:
-                name = alias = default = type_handler = MISSING
+                name = alias = default = type_handler = Empty
             if config.exclude_unset and name in unset_names:
                 continue
-            if type_handler is MISSING:
+            if type_handler is Empty:
                 match config.extras_mode:
                     case "drop":
                         pass
@@ -261,7 +260,7 @@ class ModelHandler(TypeHandler):
                         else:
                             field_mapping[vname] = vvalue
                 continue
-            if config.exclude_default and default is not MISSING and vvalue == default:
+            if config.exclude_default and default is not Empty and vvalue == default:
                 continue
             vvalue, vvalue_issues = type_handler.handle(
                 value=vvalue,
@@ -270,7 +269,7 @@ class ModelHandler(TypeHandler):
                 excluded=field_excluded,
                 config=config,
             )
-            if vvalue is MISSING:
+            if vvalue is Empty:
                 continue
             issues.extend(vvalue_issues)
             if target_value_patches:
@@ -367,4 +366,4 @@ class ModelHandler(TypeHandler):
                     return model, issues
                 else:
                     return value, issues
-        return MISSING, issues
+        return Empty, issues

@@ -4,14 +4,13 @@ if TYPE_CHECKING:
     from .._codec import Config
 
 from .._pointers import JsonPointer
-from .._common import MISSING_TYPE, MISSING
 from .._issues import (
     BaseIssue,
     ConstantIssue,
     EnumOptionIssue,
 )
 from .._errors import MissingGenericsError, ValidationError
-from .._common import cached_get_args
+from .._common import cached_get_args, Empty
 from .base import TypeHandler, register_default_type_handler
 
 __all__ = [
@@ -25,8 +24,8 @@ __all__ = [
 class ClassVarHandler(TypeHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if self.type_hint_value is MISSING:
-            raise ValueError("type_hint_value must not be MISSING")
+        if self.type_hint_value is Empty:
+            raise ValueError("type_hint_value must not be Empty")
 
     def build(self):
         from .._codec import Config
@@ -57,10 +56,10 @@ class ClassVarHandler(TypeHandler):
         included: bool,
         excluded: bool,
         config: "Config",
-    ) -> tuple[Any | MISSING_TYPE, list[BaseIssue]]:
+    ) -> tuple[Any | Empty, list[BaseIssue]]:
         issues = []
         if not included or excluded:
-            return MISSING, issues
+            return Empty, issues
         cvalue, cissues = self._type_handler.handle(
             value=value,
             pointer=pointer,
@@ -140,10 +139,10 @@ class LiteralHandler(TypeHandler):
         included: bool,
         excluded: bool,
         config: "Config",
-    ) -> tuple[Any | MISSING_TYPE, list[BaseIssue]]:
+    ) -> tuple[Any | Empty, list[BaseIssue]]:
         issues = []
         if not included or excluded:
-            return MISSING, issues
+            return Empty, issues
         cvalue = value
         if config.source == "json":
             try:

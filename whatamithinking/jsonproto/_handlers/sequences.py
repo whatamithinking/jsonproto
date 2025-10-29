@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 from .._constraints import Length
 from .._errors import MissingGenericsError
 from .._pointers import JsonPointer
-from .._common import MISSING_TYPE, MISSING
+from .._common import Empty
 from .._issues import (
     JsonTypeIssue,
     BaseIssue,
@@ -195,7 +195,7 @@ class SequenceHandler(TypeHandler):
         included: bool,
         excluded: bool,
         config: "Config",
-    ) -> tuple[Any | MISSING_TYPE, list[BaseIssue]]:
+    ) -> tuple[Any | Empty, list[BaseIssue]]:
         issues = []
         cvalue = value
         if config.source == "json":
@@ -243,7 +243,7 @@ class SequenceHandler(TypeHandler):
             )
             if (item_pointer := pointer.join(i))
             and ((item_excluded := config.exclude.matches(item_pointer)) is not True)
-            and ((item_value := vv) is not MISSING)
+            and ((item_value := vv) is not Empty)
             and (
                 not source_patches
                 or (
@@ -251,7 +251,7 @@ class SequenceHandler(TypeHandler):
                         "source", "value", item_pointer, item_value
                     )
                 )
-                is not MISSING
+                is not Empty
             )
             and (
                 item_results := type_handler.handle(
@@ -262,7 +262,7 @@ class SequenceHandler(TypeHandler):
                     config=config,
                 )
             )
-            and ((item_value := item_results[0]) is not MISSING)
+            and ((item_value := item_results[0]) is not Empty)
             and (issues.extend(item_results[1]) is None)
             and (
                 not target_patches
@@ -271,7 +271,7 @@ class SequenceHandler(TypeHandler):
                         "target", "value", item_pointer, item_value
                     )
                 )
-                is not MISSING
+                is not Empty
             )
         )
         if (included and not excluded) or cvalue:
@@ -279,7 +279,7 @@ class SequenceHandler(TypeHandler):
                 return cvalue, issues
             else:
                 return value, issues
-        return MISSING, issues
+        return Empty, issues
 
 
 @register_default_type_handler(list)

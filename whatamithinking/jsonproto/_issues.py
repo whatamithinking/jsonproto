@@ -36,13 +36,13 @@ class DeserializeIssue(BaseIssue):
 
 
 @struct
-class PythonTypeIssue(BaseIssue):
-    issue_type: ClassVar[str] = "python_type"
-    expected_type: type
-
-    @field(cache=True)
-    def actual_type(self) -> type:
-        return self.value.__class__
+class PythonTypeIssue(BaseIssue): pass
+    # issue_type: ClassVar[str] = "python_type"
+    # expected_type: type
+#TODO
+    # @field(cache=True)
+    # def actual_type(self) -> type:
+    #     return self.value.__class__
 
 
 @struct

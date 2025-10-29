@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 
 from .._errors import DiscriminatorFieldMissingError, DuplicateDiscriminatorError
 from .._constraints import Discriminator
-from .._common import get_alias, MISSING_TYPE, cached_get_args
+from .._common import get_alias, Empty, cached_get_args
 from .._pointers import JsonPointer
 from .._issues import (
     BaseIssue,
@@ -80,7 +80,7 @@ class UnionHandler(TypeHandler):
         included: bool,
         excluded: bool,
         config: "Config",
-    ) -> tuple[Any | MISSING_TYPE, list[BaseIssue]]:
+    ) -> tuple[Any | Empty, list[BaseIssue]]:
         try:
             match config.source:
                 case "json":
@@ -131,7 +131,7 @@ class UnionHandler(TypeHandler):
         included: bool,
         excluded: bool,
         config: "Config",
-    ) -> tuple[Any | MISSING_TYPE, list[BaseIssue]]:
+    ) -> tuple[Any | Empty, list[BaseIssue]]:
         # Fast-path for Optional[T]: if value is None, return it, else use the precomputed handler
         if value is None:
             return value, []
@@ -150,7 +150,7 @@ class UnionHandler(TypeHandler):
         included: bool,
         excluded: bool,
         config: "Config",
-    ) -> tuple[Any | MISSING_TYPE, list[BaseIssue]]:
+    ) -> tuple[Any | Empty, list[BaseIssue]]:
         issues = []
         i = 0
         while i < len(self._type_handlers):
@@ -185,7 +185,7 @@ class UnionHandler(TypeHandler):
         included: bool,
         excluded: bool,
         config: "Config",
-    ) -> tuple[Any | MISSING_TYPE, list[BaseIssue]]:
+    ) -> tuple[Any | Empty, list[BaseIssue]]:
         return self._handle(
             value=value,
             pointer=pointer,

@@ -11,10 +11,9 @@ from types import MappingProxyType
 if TYPE_CHECKING:
     from .._codec import Config
 
-from .._common import MISSING, cached_get_args
+from .._common import Empty, cached_get_args
 from .._errors import MissingGenericsError
 from .._pointers import JsonPointer
-from .._common import MISSING_TYPE, MISSING
 from .._issues import (
     JsonTypeIssue,
     BaseIssue,
@@ -57,7 +56,7 @@ class MappingHandler(TypeHandler):
         included: bool,
         excluded: bool,
         config: "Config",
-    ) -> tuple[Any | MISSING_TYPE, list[BaseIssue]]:
+    ) -> tuple[Any | Empty, list[BaseIssue]]:
         issues = []
         cvalue = value
         if config.source == "json":
@@ -97,20 +96,20 @@ class MappingHandler(TypeHandler):
         cvalue = mapping(
             (key, val)
             for k, v in getattr(cvalue, 'items', getattr(cvalue, "__iter__"))()
-            if ((key := k) is not MISSING)
-            and ((val := v) is not MISSING)
+            if ((key := k) is not Empty)
+            and ((val := v) is not Empty)
             and (not config.exclude_none or val is not None)
             and (key_pointer := pointer.join(key))
             and ((key_excluded := config.exclude.matches(key_pointer)) is not True)
             and (
                 not source_key_patches
                 or (key := config.patches.patch("source", "key", key_pointer, key))
-                is not MISSING
+                is not Empty
             )
             and (
                 not source_value_patches
                 or (val := config.patches.patch("source", "value", key_pointer, val))
-                is not MISSING
+                is not Empty
             )
             and (
                 (
@@ -122,9 +121,9 @@ class MappingHandler(TypeHandler):
                         config=config,
                     )
                 )
-                is not MISSING
+                is not Empty
             )
-            and ((key := key_results[0]) is not MISSING)
+            and ((key := key_results[0]) is not Empty)
             and (issues.extend(key_results[1]) is None)
             and (
                 (
@@ -136,19 +135,19 @@ class MappingHandler(TypeHandler):
                         config=config,
                     )
                 )
-                is not MISSING
+                is not Empty
             )
-            and ((val := val_results[0]) is not MISSING)
+            and ((val := val_results[0]) is not Empty)
             and (issues.extend(val_results[1]) is None)
             and (
                 not target_key_patches
                 or (key := config.patches.patch("target", "key", key_pointer, key))
-                is not MISSING
+                is not Empty
             )
             and (
                 not target_value_patches
                 or (val := config.patches.patch("target", "value", key_pointer, val))
-                is not MISSING
+                is not Empty
             )
         )
         if (included and not excluded) or cvalue:
@@ -156,7 +155,7 @@ class MappingHandler(TypeHandler):
                 return cvalue, issues
             else:
                 return value, issues
-        return MISSING, issues
+        return Empty, issues
 
 
 @register_default_type_handler(dict)

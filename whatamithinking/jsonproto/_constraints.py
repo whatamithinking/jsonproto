@@ -33,6 +33,7 @@ __all__ = [
     "Interface",
     "Disjoint",
     "Dependent",
+    "Required",
 ]
 
 
@@ -59,6 +60,7 @@ T_ConstraintType = Literal[
     "interface",
     "disjoint",
     "dependent",
+    "required",
 ]
 T_ConstraintId = Literal[
     "value_eq",
@@ -119,6 +121,7 @@ T_ConstraintId = Literal[
     "interface",
     "disjoint",
     "dependent",
+    "required",
 ]
 
 
@@ -530,3 +533,10 @@ class Dependent(BaseConstraint):
         object.__setattr__(self, "field_names", frozenset(field_names))
         if len(self.field_names) <= 1:
             raise ValueError("At least two field names must be given")
+
+
+@struct(kw_only=False)
+class Required(BaseConstraint):
+    value: bool
+    constraint_type: ClassVar[str] = "required"
+    constraint_id: ClassVar[str] = "required"

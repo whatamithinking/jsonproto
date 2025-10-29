@@ -21,15 +21,20 @@ from lru import LRU
 if TYPE_CHECKING:
     from ._constraints import T_ConstraintType, T_ConstraintId
 
-__all__ = []
+__all__ = ["Empty"]
 
 
-class MISSING_TYPE:
-    def __repr__(self) -> str:
-        return "<MISSING>"
+class EmptyMeta(type):
+    def __repr__(cls):
+        return "<Empty>"
+
+    def __bool__(cls): 
+        return False
 
 
-MISSING = MISSING_TYPE()
+class Empty(metaclass=EmptyMeta): ...
+
+
 T = TypeVar("T")
 T_Key = TypeVar("T_Key")
 T_Value = TypeVar("T_Value")
@@ -41,7 +46,7 @@ T_ResolvedTypeHint = type
 T_UnresolvedTypeHint = type
 T_StringTypeHint = str
 T_FuzzyTypeHint = T_ResolvedTypeHint | T_UnresolvedTypeHint | T_StringTypeHint
-T_TypeHintValue = Any | MISSING_TYPE
+T_TypeHintValue = Any | Empty
 T_CodecSerializationFormat = Literal["jsonstr", "jsonbytes"]
 T_CodecSourceFormat = T_CodecSerializationFormat | T_SourceFormat
 T_CodecTargetFormat = T_CodecSourceFormat

@@ -21,8 +21,7 @@ from .._common import (
     T_ResolvedTypeHint,
     T_IsTypeCallback,
     Constraints,
-    MISSING,
-    MISSING_TYPE,
+    Empty,
 )
 from .._resolver import resolve_type_hint
 
@@ -53,16 +52,16 @@ def default_callback_handler_classes():
 
 
 def register_default_type_handler(
-    type_hint: T_ResolvedTypeHint | MISSING_TYPE = MISSING,
-    callback: T_IsTypeCallback | MISSING_TYPE = MISSING,
+    type_hint: T_ResolvedTypeHint | Empty = Empty,
+    callback: T_IsTypeCallback | Empty = Empty,
 ) -> Callable[[type[T]], type[T]]:
-    if type_hint is MISSING and callback is MISSING:
+    if type_hint is Empty and callback is Empty:
         raise ValueError("one of type_hint or callback must be given")
-    elif type_hint is not MISSING and callback is not MISSING:
+    elif type_hint is not Empty and callback is not Empty:
         raise ValueError("either type_hint or callback must be given, not both")
 
     def register_default_type_handler_wrapper(type_handler_class: type[T]) -> type[T]:
-        if type_hint is not MISSING:
+        if type_hint is not Empty:
             thr = resolve_type_hint(type_hint=type_hint)
             if thr.is_partial:
                 raise TypeError(
@@ -125,7 +124,7 @@ class TypeHandler:
         codec: "Codec",
         type_hint: type,
         constraints: Constraints,
-        type_hint_value: T_TypeHintValue = MISSING,
+        type_hint_value: T_TypeHintValue = Empty,
     ) -> None:
         self._codec = weakref.ref(codec)
         self.type_hint = type_hint
@@ -150,7 +149,7 @@ class TypeHandler:
         self,
         type_hint: type,
         constraints: Constraints = Constraints.empty,
-        type_hint_value: T_TypeHintValue = MISSING,
+        type_hint_value: T_TypeHintValue = Empty,
     ) -> Self:
         return self.codec.get_type_handler(
             type_hint=type_hint,
@@ -167,5 +166,5 @@ class TypeHandler:
         included: bool,
         excluded: bool,
         config: "Config",
-    ) -> tuple[Any | MISSING_TYPE, list[BaseIssue]]:
+    ) -> tuple[Any | Empty, list[BaseIssue]]:
         raise NotImplementedError
