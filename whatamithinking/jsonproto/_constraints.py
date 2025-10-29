@@ -62,6 +62,39 @@ T_ConstraintType = Literal[
     "dependent",
     "required",
 ]
+# constraint types supporting multiple simultaneous sub-types/constraint_ids
+# such as value, which can have value_ge and value_le both be set at the same time
+# for a type hint. this is used for clearer IDE support so we can indicate when
+# Constraints.get will return a iterable or a single value
+T_ConstraintTypeMulti = Literal[
+    "value",
+    "length",
+    "example",  # examples keep stacking forever and do not cancel each other out in Constraints
+]
+# constraint types where only sub-type ca nbe present for a type hint at a time
+# such as title, since we can only have one title for something at a time
+T_ConstraintTypeSingle = Literal[
+    "alias",
+    "title",
+    "summary",
+    "description",
+    "pattern",
+    "discriminator",
+    "encoding",
+    "format",
+    "deprecated",
+    "status",
+    "default",
+    "default_factory",
+    "media_type",
+    "data_type",
+    "contact",
+    "server",
+    "interface",
+    "disjoint",
+    "dependent",
+    "required",
+]
 T_ConstraintId = Literal[
     "value_eq",
     "value_gt",

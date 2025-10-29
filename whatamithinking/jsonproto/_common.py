@@ -15,6 +15,8 @@ from typing import (
 )
 from collections import deque
 from types import MappingProxyType
+from itertools import chain
+from operator import attrgetter
 
 from lru import LRU
 
@@ -126,11 +128,11 @@ class Constraints:
         try:
             return self._hash
         except AttributeError:
-            self._hash = hash(tuple(sorted(self._mapping.items())))
+            self._hash = hash(tuple(sorted(self.__iter__(), key=attrgetter("constraint_id"))))
             return self._hash
 
     def __bool__(self) -> bool:
-        return bool(self._mapping)
+        return self._mapping.__bool__()
 
     def _build_values(self) -> list[BaseConstraint]:
         self._values = []
@@ -141,6 +143,7 @@ class Constraints:
                 extend(value)
             else:
                 append(value)
+        self._values.sort(key=attrgetter("constraint_id"))
         return self._values
 
     def __iter__(self) -> Iterator[BaseConstraint]:
@@ -159,8 +162,8 @@ class Constraints:
         self, constraint_id: "T_ConstraintId", default: T = None
     ) -> BaseConstraint | deque[BaseConstraint] | T:
         return self._mapping.get(constraint_id, default)
-
-    def append(self, constraint: BaseConstraint) -> None:
+    
+    def _append(self, constraint: BaseConstraint) -> None:
         match constraint.constraint_id:
             # handle constraints we allow multiple instances of
             case "example":
@@ -179,14 +182,13 @@ class Constraints:
 
     def _extend(self, constraints: Iterable[BaseConstraint]) -> None:
         for constraint in constraints:
-            self.append(constraint)
+            self._append(constraint)
 
-    def extendleft(self, constraints: Iterable[BaseConstraint]) -> None:
-        for constraint in constraints:
-            # if constraint already in mapping current value should take precedence over these prepend values
-            if constraint.constraint_id in self._mapping:
-                continue
-            self.append(constraint)
+    def append(self, constraint: BaseConstraint) -> "Constraints":
+        return self.__class__(chain(self.__iter__(), (constraint,)))
+
+    def extendleft(self, constraints: Iterable[BaseConstraint]) -> "Constraints":
+        return self.__class__(chain(constraints, self.__iter__()))
 
 
 class _EmptyConstraints(Constraints):
