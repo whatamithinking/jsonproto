@@ -60,7 +60,7 @@ class BoolHandler(TypeHandler):
         excluded: bool,
         config: "Config",
     ) -> tuple[Any | Empty, list[BaseIssue]]:
-        if not included or excluded:
+        if not included or excluded or value is Empty:
             return Empty, []
         issues = []
         if value.__class__ is not bool:
@@ -93,7 +93,7 @@ class NoneHandler(TypeHandler):
         excluded: bool,
         config: "Config",
     ) -> tuple[Any | Empty, list[BaseIssue]]:
-        if not included or excluded:
+        if not included or excluded or value is Empty:
             return Empty, []
         issues = []
         if value.__class__ not in (None, NoneType):
@@ -156,7 +156,7 @@ class EnumHandler(TypeHandler):
         config: "Config",
     ) -> tuple[Any | Empty, list[BaseIssue]]:
         issues = []
-        if not included or excluded:
+        if not included or excluded or value is Empty:
             return Empty, issues
         cvalue = value
         if config.source == "json":

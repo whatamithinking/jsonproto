@@ -58,7 +58,7 @@ class ClassVarHandler(TypeHandler):
         config: "Config",
     ) -> tuple[Any | Empty, list[BaseIssue]]:
         issues = []
-        if not included or excluded:
+        if not included or excluded or value is Empty:
             return Empty, issues
         cvalue, cissues = self._type_handler.handle(
             value=value,
@@ -141,7 +141,7 @@ class LiteralHandler(TypeHandler):
         config: "Config",
     ) -> tuple[Any | Empty, list[BaseIssue]]:
         issues = []
-        if not included or excluded:
+        if not included or excluded or value is Empty:
             return Empty, issues
         cvalue = value
         if config.source == "json":

@@ -250,7 +250,7 @@ class BytesLikeHandler(TypeHandler):
         config: "Config",
     ) -> tuple[Any | Empty, list[BaseIssue]]:
         issues = []
-        if not included or excluded:
+        if not included or excluded or value is Empty:
             return Empty, issues
         converted = coerced = value
         if config.coerce:

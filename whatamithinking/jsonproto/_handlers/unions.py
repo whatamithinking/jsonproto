@@ -67,7 +67,7 @@ class UnionHandler(TypeHandler):
                 self._optional_type_handler = self.get_type_handler(
                     type_hint=non_none_type, constraints=self.constraints
                 )
-                self._handle = self._optional_handle
+                self._handle = self._nullable_handle
             else:
                 self._handle = self._left_to_right_handle
                 self._type_hints = deque(cached_get_args(self.type_hint))
@@ -124,7 +124,7 @@ class UnionHandler(TypeHandler):
             config=config,
         )
 
-    def _optional_handle(
+    def _nullable_handle(
         self,
         value: Any,
         pointer: JsonPointer,

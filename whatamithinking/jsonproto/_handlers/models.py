@@ -228,11 +228,15 @@ class ModelHandler(TypeHandler):
             items = getattr(cvalue, "items", getattr(cvalue, "__iter__"))()
         set_vnames = set[str]()
         for vname, vvalue in items:
+            if vvalue is Empty:
+                continue
             field_pointer = pointer.join(vname)
             if source_key_patches:
                 vname = config.patches.patch("source", "key", field_pointer, vname)
             if source_value_patches:
                 vvalue = config.patches.patch("source", "value", field_pointer, vvalue)
+                if vvalue is Empty:
+                    continue
             if config.exclude_none and vvalue is None:
                 continue
             if field_excluded := config.exclude.matches(field_pointer):
@@ -269,11 +273,11 @@ class ModelHandler(TypeHandler):
                 excluded=field_excluded,
                 config=config,
             )
+            if target_value_patches:
+                vvalue = config.patches.patch("target", "value", field_pointer, vvalue)
             if vvalue is Empty:
                 continue
             issues.extend(vvalue_issues)
-            if target_value_patches:
-                vvalue = config.patches.patch("target", "value", field_pointer, vvalue)
             set_vnames.add(vname)
             match config.target:
                 case "json":
