@@ -6,19 +6,51 @@ Declarative json modeler, validator, encoder, and decoder
 
 - [WhatAmIThinking-JsonProto](#whatamithinking-jsonproto)
   - [Table of Contents](#table-of-contents)
-  - [Usage](#usage)
-  - [Usage - Format Inference](#usage---format-inference)
-    - [Usage - Format Inference - Type Hint](#usage---format-inference---type-hint)
-    - [Usage - Format Inference - Source](#usage---format-inference---source)
-    - [Usage - Format Inference - Target](#usage---format-inference---target)
+  - [Reference](#reference)
+    - [Reference - Required, Nullable, and Non-Nullable Fields](#reference---required-nullable-and-non-nullable-fields)
+    - [Reference - Format Inference](#reference---format-inference)
+      - [Reference - Format Inference - Type Hint](#reference---format-inference---type-hint)
+      - [Reference - Format Inference - Source](#reference---format-inference---source)
+      - [Reference - Format Inference - Target](#reference---format-inference---target)
   - [Benchmarks](#benchmarks)
     - [Benchmarks - Config](#benchmarks---config)
     - [Benchmarks - Basic Model Operations](#benchmarks---basic-model-operations)
     - [Benchmarks - Validation and Conversion](#benchmarks---validation-and-conversion)
 
-## Usage
+## Reference
 
-## Usage - Format Inference
+### Reference - Required, Nullable, and Non-Nullable Fields
+
+There are a few subtly different scenarios which can come up when working with structs/models, especially when handling things like updates. An update structure usually consists of a lot of optional fields. 
+
+```python
+from typing import Annotated
+from whatamithinking.jsonproto import struct, Required, Pattern
+
+
+T_Username = Annotated[str, Pattern(r"[a-z0-9-\._']{,20}")]
+
+
+@struct
+class UpdateUserModel:
+    a: T_Username | None  # required, nullable
+    b: T_Username  # required, non-nullable
+    c: T_Username | None = None  # optional, nullable
+    d: Annotated[T_Username, Required(False)]  # optional, non-nullable
+
+
+print(UpdateUserModel(a=None, b="myuser001"))  # UpdateUserModel(a=None,b="myuser001",c=None,d=<Empty>)
+```
+
+Some fields may support being set to None, which might be interpreted as setting to NULL in a database or deleting the data entirely, and in these cases we can usually setup the field as `field_name: FieldType | None = None` and having it default to `None` is fine because that is a valid possible value. 
+
+Other fields may not support being set to None and must always be set to a value of the appropriate type and meeting validation requirements or else not set at all. The code below of updating a username for an account is a good example of such a situation, where:
+- We cannot allow the user to set username to None/NULL, it must always be a valid username string value
+- There is no obvious choice for a default value for the username, which is what we normally do to make a field optional/not-required.  
+
+To cover this scenario, the `Required` constraint was required, which can be added in an annotation and set to `Required(False)` to make the field optional but not nullable and without specifying a default. The struct object will represent the absence of this value as the `Empty` class if not provided. The `Empty` value only shows up when using a struct object; otherwise, fields with this value are stripped out by the `Codec`.
+
+### Reference - Format Inference
 
 TLDR: you can skip providing `source` unless `value` is a `dict` and you can skip providing `target` unless you are trying to convert to something other than the `source` format.
 
@@ -32,14 +64,14 @@ In order for anything to work, we need to know the source format of the data we 
 
 To cut down on typing, a minor amount of format inference is supported, allowing the codec to guess the type_hint, source format, and target format under certain circumstances.
 
-### Usage - Format Inference - Type Hint
+#### Reference - Format Inference - Type Hint
 
 | Condition           | Inference          |
 | ------------------- | ------------------ |
 | `value` is `struct` | `type(value)`      |
 | Fallback            | raise `ValueError` |
 
-### Usage - Format Inference - Source
+#### Reference - Format Inference - Source
 
 A notable exception to `source` format inference at the moment is when the value given is a `dict`. A `dict` could be either `json` or `unstruct` format, so the caller needs to explicitly provide the format.
 
@@ -50,7 +82,7 @@ A notable exception to `source` format inference at the moment is when the value
 | `type_hint` is `struct` and `value` is `bytes` | `jsonbytes`        |
 | Fallback                                       | raise `ValueError` |
 
-### Usage - Format Inference - Target
+#### Reference - Format Inference - Target
 
 There is no way to infer the target when conversion/coercion is desired. When doing validation we probably just want source=target since we are not doing anything with the target format. 
 
