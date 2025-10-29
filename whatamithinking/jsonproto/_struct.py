@@ -304,6 +304,8 @@ def __replace__(self, **changes):
 
 
 def __not_slotted_getitem__(self, name):
+    # ASSUMPTION: all field values are stored on the instance everytime and not stored
+    # in the class attrs or anywhere else! this must remain try or this will throw KeyError
     # should be a bit faster than getattr and *should* be safe since field values should
     # get stored in the instance dict
     return self.__dict__[name]
