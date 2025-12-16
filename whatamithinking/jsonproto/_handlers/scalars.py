@@ -19,7 +19,7 @@ from .._common import Empty
 from .._issues import (
     JsonTypeIssue,
     BaseIssue,
-    PythonTypeIssue,
+    StructTypeIssue,
     EnumOptionIssue,
 )
 from .._errors import ValidationError
@@ -66,15 +66,11 @@ class BoolHandler(TypeHandler):
         if value.__class__ is not bool:
             if config.source == "json":
                 issues.append(
-                    JsonTypeIssue(
-                        value=value, pointer=pointer, expected_type="boolean"
-                    )
+                    JsonTypeIssue(value=value, pointer=pointer, expected_type="boolean")
                 )
             else:
                 issues.append(
-                    PythonTypeIssue(
-                        value=value, pointer=pointer, expected_type=bool
-                    )
+                    StructTypeIssue(value=value, pointer=pointer, expected_type=bool)
                 )
         return value, issues
 
@@ -99,15 +95,11 @@ class NoneHandler(TypeHandler):
         if value.__class__ not in (None, NoneType):
             if config.source == "json":
                 issues.append(
-                    JsonTypeIssue(
-                        value=value, pointer=pointer, expected_type="null"
-                    )
+                    JsonTypeIssue(value=value, pointer=pointer, expected_type="null")
                 )
             else:
                 issues.append(
-                    PythonTypeIssue(
-                        value=value, pointer=pointer, expected_type=None
-                    )
+                    StructTypeIssue(value=value, pointer=pointer, expected_type=None)
                 )
         return value, issues
 
@@ -122,12 +114,12 @@ class EnumHandler(TypeHandler):
 
     def build(self):
         from .._codec import Config
-        
+
         # unravel types, handling StrEnum and IntEnum which bury the type of the values in the enum
         base_type = self.type_hint.__bases__[0]
         while issubclass(base_type, enum.Enum):
             base_type = base_type.__bases__[0]
-        
+
         self._type_handler = self.get_type_handler(
             type_hint=base_type, constraints=self.constraints
         )
@@ -195,7 +187,7 @@ class EnumHandler(TypeHandler):
                     cvalue = self.type_hint(cvalue)
             if cvalue.__class__ is not self.type_hint:
                 return cvalue, [
-                    PythonTypeIssue(
+                    StructTypeIssue(
                         value=cvalue, pointer=pointer, expected_type=self.type_hint
                     )
                 ]
@@ -204,7 +196,7 @@ class EnumHandler(TypeHandler):
                     cvalue = cvalue.value
                 except AttributeError:
                     issues.append(
-                        PythonTypeIssue(
+                        StructTypeIssue(
                             value=cvalue, pointer=pointer, expected_type=self.type_hint
                         )
                     )

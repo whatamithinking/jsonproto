@@ -26,7 +26,7 @@ from .._issues import (
     EncodingIssue,
     JsonTypeIssue,
     BaseIssue,
-    PythonTypeIssue,
+    StructTypeIssue,
     LengthIssue,
     PatternIssue,
     FormatIssue,
@@ -331,33 +331,31 @@ class StringHandler(TypeHandler):
                         )
                     )
         else:
-            is_python_type = True
+            is_struct_type = True
             if not self.is_structure_class(converted):
-                is_python_type = False
+                is_struct_type = False
                 issues.append(
-                    PythonTypeIssue(
+                    StructTypeIssue(
                         value=converted,
                         pointer=pointer,
                         expected_type=self.structure_class,
                     )
                 )
             if config.validate:
-                if (
-                    self._validators and self.structure_class is self.destructure_class
-                ):
+                if self._validators and self.structure_class is self.destructure_class:
                     issues.extend(
                         issue
                         for validator in self._validators
                         for issue in validator(value=converted, pointer=pointer)
                     )
-            if is_python_type and config.convert:
+            if is_struct_type and config.convert:
                 if config.target == "json":
                     if converted.__class__ is not self.destructure_class:
                         try:
                             converted = self.destructure(converted)
                         except TypeError:
                             issues.append(
-                                PythonTypeIssue(
+                                StructTypeIssue(
                                     value=converted,
                                     pointer=pointer,
                                     expected_type=self.structure_class,
@@ -380,7 +378,7 @@ class StringHandler(TypeHandler):
                         converted = self.copy_structure(converted)
                     except TypeError:
                         issues.append(
-                            PythonTypeIssue(
+                            StructTypeIssue(
                                 value=converted,
                                 pointer=pointer,
                                 expected_type=self.structure_class,

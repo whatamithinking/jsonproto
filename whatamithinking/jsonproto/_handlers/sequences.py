@@ -17,7 +17,7 @@ from .._common import Empty
 from .._issues import (
     JsonTypeIssue,
     BaseIssue,
-    PythonTypeIssue,
+    StructTypeIssue,
     LengthIssue,
 )
 from .._common import cached_get_args
@@ -130,9 +130,9 @@ class SequenceHandler(TypeHandler):
                 f"Generic arg(s) required but not given for {self.type_hint!r}",
             )
         elif len(item_types) == 1:
-            self._item_type_handlers = cycle((
-                self.get_type_handler(type_hint=item_types[0]),
-            ))
+            self._item_type_handlers = cycle(
+                (self.get_type_handler(type_hint=item_types[0]),)
+            )
         else:
             self._item_type_handlers = tuple(map(self.get_type_handler, item_types))
         self._length_validators = []
@@ -216,7 +216,7 @@ class SequenceHandler(TypeHandler):
                 pass
             elif cvalue.__class__ is not self.structure_class:
                 return cvalue, [
-                    PythonTypeIssue(
+                    StructTypeIssue(
                         value=cvalue,
                         pointer=pointer,
                         expected_type=(
@@ -226,7 +226,7 @@ class SequenceHandler(TypeHandler):
                 ]
         # if coercing, we are ok cutting off the end of the sequence if it is too short
         # otherwise, we need to make sure we are meeting length requirements
-        # or else we will allow sequences which are too long to pass through even when validating 
+        # or else we will allow sequences which are too long to pass through even when validating
         if not config.coerce and self._length_validators:
             issues.extend(
                 issue
@@ -235,7 +235,9 @@ class SequenceHandler(TypeHandler):
             )
         source_patches = config.patches.have_for("source", "value")
         target_patches = config.patches.have_for("target", "value")
-        sequence_class = self.destructure_class if config.target == "json" else self.structure_class
+        sequence_class = (
+            self.destructure_class if config.target == "json" else self.structure_class
+        )
         cvalue = sequence_class(
             item_value
             for i, (type_handler, vv) in enumerate(

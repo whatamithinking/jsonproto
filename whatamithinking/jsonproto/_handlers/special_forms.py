@@ -106,7 +106,7 @@ class LiteralHandler(TypeHandler):
             raise MissingGenericsError(
                 f"Generic arg(s) required but not given for {self.type_hint!r}",
             )
-        self._python_type_handlers = dict(
+        self._struct_type_handlers = dict(
             (
                 arg,
                 self.get_type_handler(
@@ -115,10 +115,10 @@ class LiteralHandler(TypeHandler):
             )
             for arg in args
         )
-        self._python_options = frozenset(self._python_type_handlers)
+        self._python_options = frozenset(self._struct_type_handlers)
         issues = []
         self._json_type_handlers = {}
-        for pyval, type_handler in self._python_type_handlers.items():
+        for pyval, type_handler in self._struct_type_handlers.items():
             jsonval, jissues = type_handler.handle(
                 value=pyval,
                 pointer=JsonPointer.root,
@@ -165,7 +165,7 @@ class LiteralHandler(TypeHandler):
             issues.extend(cissues)
         else:
             try:
-                type_handler = self._python_type_handlers[cvalue]
+                type_handler = self._struct_type_handlers[cvalue]
             except KeyError:
                 return cvalue, [
                     EnumOptionIssue(

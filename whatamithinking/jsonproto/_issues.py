@@ -36,8 +36,8 @@ class DeserializeIssue(BaseIssue):
 
 
 @struct
-class PythonTypeIssue(BaseIssue):
-    issue_type: ClassVar[str] = "python_type"
+class StructTypeIssue(BaseIssue):
+    issue_type: ClassVar[str] = "struct_type"
     expected_type: type
 
     @field(cache=True)

@@ -24,7 +24,7 @@ from .._pointers import JsonPointer
 from .._issues import (
     JsonTypeIssue,
     BaseIssue,
-    PythonTypeIssue,
+    StructTypeIssue,
     ExtraFieldIssue,
     DependentIssue,
     DisjointIssue,
@@ -171,16 +171,12 @@ class ModelHandler(TypeHandler):
                 # each item we can accept it and convert to a mapping below
                 if config.coerce and (
                     hasattr(cvalue, "items")
-                    or (
-                        hasattr(cvalue, "__iter__")
-                        and cvalue
-                        and len(cvalue[0]) == 2
-                    )
+                    or (hasattr(cvalue, "__iter__") and cvalue and len(cvalue[0]) == 2)
                 ):
                     pass
                 elif cvalue.__class__ is not self.python_class:
                     return cvalue, [
-                        PythonTypeIssue(
+                        StructTypeIssue(
                             value=cvalue,
                             pointer=pointer,
                             expected_type=self.python_class,
@@ -192,17 +188,13 @@ class ModelHandler(TypeHandler):
                 # we are looking for
                 if config.coerce and (
                     hasattr(cvalue, "items")
-                    or (
-                        hasattr(cvalue, "__iter__")
-                        and cvalue
-                        and len(cvalue[0]) == 2
-                    )
+                    or (hasattr(cvalue, "__iter__") and cvalue and len(cvalue[0]) == 2)
                     or is_struct_instance(cvalue)
                 ):
                     pass
                 elif cvalue.__class__ is not self.type_hint:
                     return cvalue, [
-                        PythonTypeIssue(
+                        StructTypeIssue(
                             value=cvalue,
                             pointer=pointer,
                             expected_type=self.type_hint,

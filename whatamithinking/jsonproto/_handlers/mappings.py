@@ -17,7 +17,7 @@ from .._pointers import JsonPointer
 from .._issues import (
     JsonTypeIssue,
     BaseIssue,
-    PythonTypeIssue,
+    StructTypeIssue,
 )
 
 from .base import TypeHandler, register_default_type_handler
@@ -80,7 +80,7 @@ class MappingHandler(TypeHandler):
                 pass
             elif cvalue.__class__ is not self.structure_class:
                 return cvalue, [
-                    PythonTypeIssue(
+                    StructTypeIssue(
                         value=cvalue,
                         pointer=pointer,
                         expected_type=(
@@ -95,7 +95,7 @@ class MappingHandler(TypeHandler):
         mapping = self.destructure if config.target == "json" else self.structure
         cvalue = mapping(
             (key, val)
-            for k, v in getattr(cvalue, 'items', getattr(cvalue, "__iter__"))()
+            for k, v in getattr(cvalue, "items", getattr(cvalue, "__iter__"))()
             if ((key := k) is not Empty)
             and ((val := v) is not Empty)
             and (not config.exclude_none or val is not None)

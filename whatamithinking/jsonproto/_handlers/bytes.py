@@ -25,7 +25,7 @@ from .._issues import (
     EncodingIssue,
     JsonTypeIssue,
     BaseIssue,
-    PythonTypeIssue,
+    StructTypeIssue,
     LengthIssue,
     FormatIssue,
 )
@@ -254,7 +254,9 @@ class BytesLikeHandler(TypeHandler):
             return Empty, issues
         converted = coerced = value
         if config.coerce:
-            converted = coerced = self.coerce(value=value, pointer=pointer, config=config)
+            converted = coerced = self.coerce(
+                value=value, pointer=pointer, config=config
+            )
         if config.source == "json":
             is_json_type = True
             if converted.__class__ is not str:
@@ -273,7 +275,9 @@ class BytesLikeHandler(TypeHandler):
                         for validator in self._validators
                         for issue in validator(value=converted, pointer=pointer)
                     )
-            if is_json_type and (config.validate or (config.convert and config.target != "json")):
+            if is_json_type and (
+                config.validate or (config.convert and config.target != "json")
+            ):
                 try:
                     converted = self._decoder(converted)
                 except (ValueError, binascii.Error):
@@ -299,11 +303,11 @@ class BytesLikeHandler(TypeHandler):
                         )
                     )
         else:
-            is_python_type = True
+            is_struct_type = True
             if converted.__class__ is not self.structure_class:
-                is_python_type = False
+                is_struct_type = False
                 issues.append(
-                    PythonTypeIssue(
+                    StructTypeIssue(
                         value=converted,
                         pointer=pointer,
                         expected_type=self.structure_class,
@@ -316,14 +320,14 @@ class BytesLikeHandler(TypeHandler):
                         for validator in self._validators
                         for issue in validator(value=converted, pointer=pointer)
                     )
-            if is_python_type and config.convert:
+            if is_struct_type and config.convert:
                 if config.target == "json":
                     if converted.__class__ is not self.destructure_class:
                         try:
                             converted = self.destructure(converted)
                         except TypeError:
                             issues.append(
-                                PythonTypeIssue(
+                                StructTypeIssue(
                                     value=converted,
                                     pointer=pointer,
                                     expected_type=self.structure_class,
@@ -345,7 +349,7 @@ class BytesLikeHandler(TypeHandler):
                         converted = self.copy_structure(converted)
                     except TypeError:
                         issues.append(
-                            PythonTypeIssue(
+                            StructTypeIssue(
                                 value=converted,
                                 pointer=pointer,
                                 expected_type=self.structure_class,

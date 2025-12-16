@@ -1,9 +1,4 @@
-from typing import (
-    Any,
-    cast,
-    TYPE_CHECKING,
-    Callable
-)
+from typing import Any, cast, TYPE_CHECKING, Callable
 from numbers import Number
 from decimal import Decimal
 from functools import partial
@@ -17,7 +12,7 @@ from .._common import Empty
 from .._issues import (
     JsonTypeIssue,
     BaseIssue,
-    PythonTypeIssue,
+    StructTypeIssue,
     FormatIssue,
     NumberIssue,
 )
@@ -72,7 +67,9 @@ class NumberLikeHandler(TypeHandler):
             ]
         return []
 
-    def _validate_eq(self, limit: Number, value: int, pointer: JsonPointer) -> list[BaseIssue]:
+    def _validate_eq(
+        self, limit: Number, value: int, pointer: JsonPointer
+    ) -> list[BaseIssue]:
         if value == limit:
             return ()
         return [
@@ -84,7 +81,9 @@ class NumberLikeHandler(TypeHandler):
             )
         ]
 
-    def _validate_gt(self, limit: Number, value: int, pointer: JsonPointer) -> list[BaseIssue]:
+    def _validate_gt(
+        self, limit: Number, value: int, pointer: JsonPointer
+    ) -> list[BaseIssue]:
         if value > limit:
             return ()
         return [
@@ -96,7 +95,9 @@ class NumberLikeHandler(TypeHandler):
             )
         ]
 
-    def _validate_ge(self, limit: Number, value: int, pointer: JsonPointer) -> list[BaseIssue]:
+    def _validate_ge(
+        self, limit: Number, value: int, pointer: JsonPointer
+    ) -> list[BaseIssue]:
         if value >= limit:
             return ()
         return [
@@ -108,7 +109,9 @@ class NumberLikeHandler(TypeHandler):
             )
         ]
 
-    def _validate_le(self, limit: Number, value: int, pointer: JsonPointer) -> list[BaseIssue]:
+    def _validate_le(
+        self, limit: Number, value: int, pointer: JsonPointer
+    ) -> list[BaseIssue]:
         if value <= limit:
             return ()
         return [
@@ -120,7 +123,9 @@ class NumberLikeHandler(TypeHandler):
             )
         ]
 
-    def _validate_lt(self, limit: Number, value: int, pointer: JsonPointer) -> list[BaseIssue]:
+    def _validate_lt(
+        self, limit: Number, value: int, pointer: JsonPointer
+    ) -> list[BaseIssue]:
         if value < limit:
             return ()
         return [
@@ -198,7 +203,9 @@ class NumberLikeHandler(TypeHandler):
             return Empty, issues
         converted = coerced = value
         if config.coerce:
-            converted = coerced = self.coerce(value=value, pointer=pointer, config=config)
+            converted = coerced = self.coerce(
+                value=value, pointer=pointer, config=config
+            )
         if config.source == "json":
             is_json_type = True
             if converted.__class__ is not self.destructure_class:
@@ -211,7 +218,11 @@ class NumberLikeHandler(TypeHandler):
                     )
                 )
             if is_json_type:
-                if not self._is_destructure_class_number or config.validate or (config.convert and config.target != "json"):
+                if (
+                    not self._is_destructure_class_number
+                    or config.validate
+                    or (config.convert and config.target != "json")
+                ):
                     try:
                         converted = self.structure(converted)
                     except ValueError:
@@ -226,18 +237,20 @@ class NumberLikeHandler(TypeHandler):
                                 value=converted, pointer=pointer, expected_type="string"
                             )
                         )
-                if config.validate and self._validators:  # do validation after conversion to handle numbers destructured to non-numbers like Decimal
+                if (
+                    config.validate and self._validators
+                ):  # do validation after conversion to handle numbers destructured to non-numbers like Decimal
                     issues.extend(
                         issue
                         for validator in self._validators
                         for issue in validator(value=converted, pointer=pointer)
                     )
         else:
-            is_python_type = True
+            is_struct_type = True
             if converted.__class__ is not self.structure_class:
-                is_python_type = False
+                is_struct_type = False
                 issues.append(
-                    PythonTypeIssue(
+                    StructTypeIssue(
                         value=converted,
                         pointer=pointer,
                         expected_type=self.structure_class,
@@ -250,14 +263,14 @@ class NumberLikeHandler(TypeHandler):
                         for validator in self._validators
                         for issue in validator(value=converted, pointer=pointer)
                     )
-            if is_python_type and config.convert:
+            if is_struct_type and config.convert:
                 if config.target == "json":
                     if converted.__class__ is not self.destructure_class:
                         try:
                             converted = self.destructure(converted)
                         except TypeError:
                             issues.append(
-                                PythonTypeIssue(
+                                StructTypeIssue(
                                     value=converted,
                                     pointer=pointer,
                                     expected_type=self.structure_class,
