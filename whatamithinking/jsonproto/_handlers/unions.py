@@ -17,7 +17,6 @@ from .._issues import (
     BaseIssue,
     MissingDiscriminatorIssue,
     InvalidDiscriminatorIssue,
-    UnionIssue,
 )
 
 from .base import TypeHandler, register_default_type_handler
@@ -152,7 +151,7 @@ class UnionHandler(TypeHandler):
         excluded: bool,
         config: "Config",
     ) -> tuple[Any | Empty, list[BaseIssue]]:
-        issues = list[list[BaseIssue]]()
+        issues = []
         i = 0
         while i < len(self._type_handlers):
             type_handler = self._type_handlers[i]
@@ -177,7 +176,7 @@ class UnionHandler(TypeHandler):
                 return cvalue, cissues
             issues.extend(cissues)
             i += 1
-        return value, UnionIssue(issues=issues)
+        return value, issues
 
     def handle(
         self,
