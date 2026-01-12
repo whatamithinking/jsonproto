@@ -24,6 +24,14 @@ class BaseIssue:
 
 
 @struct
+class UnionIssue:
+    """A logical OR of different collections of constraints which should be fixed,
+    where you need to repair all the issues in any one of the given collections."""
+    issue_type: ClassVar[str] = "union"
+    issues: list[list[BaseIssue]]
+
+
+@struct
 class SerializeIssue(BaseIssue):
     issue_type: ClassVar[str] = "serialize"
     message: str
