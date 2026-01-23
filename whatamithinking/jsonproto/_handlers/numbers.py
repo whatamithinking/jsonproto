@@ -21,7 +21,7 @@ from .._constraints import (
     Value,
 )
 
-from .base import TypeHandler, register_default_type_handler
+from .base import TypeHandler, default_type_handler_registry
 
 __all__ = [
     "IntHandler",
@@ -284,7 +284,7 @@ class NumberLikeHandler(TypeHandler):
             return value, issues
 
 
-@register_default_type_handler(int)
+@default_type_handler_registry.register(type_hint=int)
 class IntHandler(NumberLikeHandler):
     data_type = "integer"
     structure_class = int
@@ -308,7 +308,7 @@ class IntHandler(NumberLikeHandler):
         return value
 
 
-@register_default_type_handler(float)
+@default_type_handler_registry.register(type_hint=float)
 class FloatHandler(NumberLikeHandler):
     data_type = "number"
     structure_class = float
@@ -332,7 +332,7 @@ class FloatHandler(NumberLikeHandler):
         return value
 
 
-@register_default_type_handler(Decimal)
+@default_type_handler_registry.register(type_hint=Decimal)
 class DecimalHandler(NumberLikeHandler):
     data_type = "string"
     structure_class = Decimal

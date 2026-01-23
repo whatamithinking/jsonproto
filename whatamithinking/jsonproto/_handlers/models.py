@@ -31,12 +31,12 @@ from .._issues import (
     MissingFieldIssue,
 )
 
-from .base import TypeHandler, register_default_type_handler
+from .base import TypeHandler, default_type_handler_registry
 
 __all__ = ["ModelHandler"]
 
 
-@register_default_type_handler(callback=is_struct_class)
+@default_type_handler_registry.register(callback=is_struct_class)
 class ModelHandler(TypeHandler):
     __slots__ = (
         "constraints",

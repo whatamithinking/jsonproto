@@ -21,7 +21,7 @@ from .._issues import (
     LengthIssue,
 )
 from .._common import cached_get_args
-from .base import TypeHandler, register_default_type_handler
+from .base import TypeHandler, default_type_handler_registry
 
 __all__ = [
     "ListHandler",
@@ -284,27 +284,27 @@ class SequenceHandler(TypeHandler):
         return Empty, issues
 
 
-@register_default_type_handler(list)
+@default_type_handler_registry.register(type_hint=list)
 class ListHandler(SequenceHandler):
     structure_class = list
 
 
-@register_default_type_handler(set)
+@default_type_handler_registry.register(type_hint=set)
 class SetHandler(SequenceHandler):
     structure_class = set
 
 
-@register_default_type_handler(frozenset)
+@default_type_handler_registry.register(type_hint=frozenset)
 class FrozenSetHandler(SequenceHandler):
     structure_class = frozenset
 
 
-@register_default_type_handler(deque)
+@default_type_handler_registry.register(type_hint=deque)
 class DequeHandler(SequenceHandler):
     structure_class = deque
 
 
-@register_default_type_handler(tuple)
+@default_type_handler_registry.register(type_hint=tuple)
 class TupleHandler(SequenceHandler):
     structure_class = tuple
 

@@ -6,8 +6,8 @@ from lru import LRU
 
 from ._handlers import (
     TypeHandler,
-    default_type_hint_handler_classes,
-    default_callback_handler_classes,
+    TypeHandlerRegistry,
+    default_type_handler_registry,
 )
 from ._pointers import (
     JsonPath,
@@ -59,17 +59,14 @@ class Config:
 
 
 class Codec:
-    def __init__(self) -> None:
-        self._type_hint_handler_classes: dict[
-            T_ResolvedTypeHint, type["TypeHandler"]
-        ] = ChainMap({}, default_type_hint_handler_classes())
-        self._callback_handler_classes: dict[T_IsTypeCallback, type["TypeHandler"]] = (
-            ChainMap({}, default_callback_handler_classes())
-        )
-        self._cache_handler_classes: dict[T_FuzzyTypeHint, type["TypeHandler"]] = {}
+    def __init__(
+        self, type_handler_registry: TypeHandlerRegistry = default_type_handler_registry
+    ) -> None:
+        self._type_handler_registry = type_handler_registry
         self._cache_handlers: dict[
             tuple[T_FuzzyTypeHint, Constraints, T_TypeHintValue], "TypeHandler"
         ] = {}
+        self._type_handler_registry.add_register_callback(self._cache_handlers.clear)
         # LRU cache for Config instances with optimized key generation
         self._config_cache = LRU(1024)
 
@@ -131,70 +128,6 @@ class Codec:
             self._config_cache[key] = config
             return config
 
-    def register_type_handler(
-        self,
-        type_handler_class: type["TypeHandler"],
-        /,
-        type_hint: T_FuzzyTypeHint | Empty = Empty,
-        callback: T_IsTypeCallback | Empty = Empty,
-    ) -> None:
-        if type_hint is Empty and callback is Empty:
-            raise ValueError("one of type_hint or callback must be given")
-        elif type_hint is not Empty and callback is not Empty:
-            raise ValueError("either type_hint or callback must be given, not both")
-        if type_hint is not Empty:
-            thr = resolve_type_hint(type_hint=type_hint)
-            if thr.is_partial:
-                raise TypeError(
-                    "stringified types not supported during type handler registration"
-                )
-            self._type_hint_handler_classes[thr.type_hint] = type_handler_class
-        else:
-            self._callback_handler_classes[callback] = type_handler_class
-        # unclear what impact of this change will have, so start over with caches
-        # to make sure we determine the handlers based on the new set of handlers
-        self._cache_handler_classes.clear()
-        self._cache_handlers.clear()
-
-    def _get_type_handler_class(
-        self, type_hint_resolution: TypeHintResolution
-    ) -> type["TypeHandler"]:
-        try:
-            return self._cache_handler_classes[type_hint_resolution.type_hint]
-        except KeyError:
-            # note that we start by looking for handlers of the more specific type hint
-            # and fallback to the less specific without the generic types, since
-            # these shell types usually themselves call in this method to handle
-            # generic types handling
-            type_hint_options = [
-                type_hint_resolution.original_type_hint,
-                type_hint_resolution.type_hint,
-            ]
-            if (origin := type_hint_resolution.origin) is not None:
-                type_hint_options.append(origin)
-            type_hint_class = None
-            for type_hint_option in type_hint_options:
-                if type_hint_class := self._type_hint_handler_classes.get(
-                    type_hint_option
-                ):
-                    break
-                for is_type, thc in self._callback_handler_classes.items():
-                    if not is_type(type_hint_option):
-                        continue
-                    type_hint_class = thc
-                    break
-                if type_hint_class:
-                    break
-            else:
-                raise TypeHandlerMissingError(
-                    f"No type handler class found supporting {type_hint_resolution.original_type_hint!r}"
-                )
-            self._cache_handler_classes[type_hint_resolution.original_type_hint] = (
-                type_hint_class
-            )
-            self._cache_handler_classes[type_hint_option] = type_hint_class
-            return type_hint_class
-
     def get_type_handler(
         self,
         type_hint: T_FuzzyTypeHint,
@@ -217,7 +150,9 @@ class Codec:
                         "type_hint_value must be given when getting the type handler for ClassVar or Final"
                     )
             elif type_hint_value is not Empty:
-                type_hint_value = Empty  # always ignore the value otherwise so instances dont explode
+                type_hint_value = (
+                    Empty  # always ignore the value otherwise so instances dont explode
+                )
                 try:
                     return self._cache_handlers[
                         (type_hint, constraints, type_hint_value)
@@ -235,7 +170,7 @@ class Codec:
                     constraints,
                 )
             )
-            type_handler_class = self._get_type_handler_class(
+            type_handler_class = self._type_handler_registry.get(
                 type_hint_resolution=type_hint_resolution
             )
             type_handler = type_handler_class(
@@ -271,7 +206,11 @@ class Codec:
             data = orjson.dumps(value, option=orjson.OPT_SORT_KEYS)
         except (TypeError, orjson.JSONEncodeError) as exc:
             raise ValidationError(
-                [SerializeIssue(value=value, pointer=JsonPointer.root, message=exc.args[0])]
+                [
+                    SerializeIssue(
+                        value=value, pointer=JsonPointer.root, message=exc.args[0]
+                    )
+                ]
             ) from exc
         if target == "jsonbytes":
             return data
@@ -284,7 +223,11 @@ class Codec:
             return orjson.loads(value)
         except orjson.JSONDecodeError as exc:
             raise ValidationError(
-                [DeserializeIssue(value=value, pointer=JsonPointer.root, message=exc.args[0])]
+                [
+                    DeserializeIssue(
+                        value=value, pointer=JsonPointer.root, message=exc.args[0]
+                    )
+                ]
             ) from exc
 
     def execute(
@@ -333,7 +276,9 @@ class Codec:
                     # other option is a dict. if a dict, possible it is a dict of json-encoded
                     # fields and values OR it is a dict of python types. no great way to tell
                     # in a reliable way one or the other
-                    raise ValueError("source format cannot be inferred, please explicitly provide it.")
+                    raise ValueError(
+                        "source format cannot be inferred, please explicitly provide it."
+                    )
         if target is Empty:
             target = source
         # NOTE: source and target are allowed to be the same thing, so we can perform a copy

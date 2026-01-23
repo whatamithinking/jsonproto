@@ -25,7 +25,7 @@ from .._issues import (
 from .._errors import ValidationError
 from .._types import Email, Url
 
-from .base import TypeHandler, register_default_type_handler
+from .base import TypeHandler, default_type_handler_registry
 from .strings import StringHandler
 from .bytes import BytesHandler
 
@@ -47,7 +47,7 @@ __all__ = [
 ]
 
 
-@register_default_type_handler(bool)
+@default_type_handler_registry.register(type_hint=bool)
 class BoolHandler(TypeHandler):
     data_type = "boolean"
     media_type = "text/plain"
@@ -75,8 +75,8 @@ class BoolHandler(TypeHandler):
         return value, issues
 
 
-@register_default_type_handler(NoneType)
-@register_default_type_handler(None)
+@default_type_handler_registry.register(type_hint=NoneType)
+@default_type_handler_registry.register(type_hint=None)
 class NoneHandler(TypeHandler):
     data_type = "null"
     media_type = "text/plain"
@@ -108,7 +108,7 @@ def is_enum(cls):
     return isclass(cls) and issubclass(cls, enum.Enum)
 
 
-@register_default_type_handler(callback=is_enum)
+@default_type_handler_registry.register(callback=is_enum)
 class EnumHandler(TypeHandler):
     type_hint: enum.Enum
 
@@ -214,7 +214,7 @@ class EnumHandler(TypeHandler):
         return value, issues
 
 
-@register_default_type_handler(datetime.datetime)
+@default_type_handler_registry.register(type_hint=datetime.datetime)
 class DateTimeHandler(StringHandler):
     format = "date-time"
     structure_class = datetime.datetime
@@ -222,7 +222,7 @@ class DateTimeHandler(StringHandler):
     destructure = staticmethod(datetime.datetime.isoformat)
 
 
-@register_default_type_handler(datetime.date)
+@default_type_handler_registry.register(type_hint=datetime.date)
 class DateHandler(StringHandler):
     format = "date"
     structure_class = datetime.date
@@ -230,7 +230,7 @@ class DateHandler(StringHandler):
     destructure = staticmethod(datetime.date.isoformat)
 
 
-@register_default_type_handler(datetime.time)
+@default_type_handler_registry.register(type_hint=datetime.time)
 class TimeHandler(StringHandler):
     format = "time"
     structure_class = datetime.time
@@ -296,7 +296,7 @@ def destructure_datetime(value: datetime.timedelta) -> str:
     return "".join(parts)
 
 
-@register_default_type_handler(datetime.timedelta)
+@default_type_handler_registry.register(type_hint=datetime.timedelta)
 class DurationHandler(StringHandler):
     format = "duration"
     structure_class = datetime.timedelta
@@ -304,7 +304,7 @@ class DurationHandler(StringHandler):
     destructure = staticmethod(destructure_datetime)
 
 
-@register_default_type_handler(ipaddress.IPv4Address)
+@default_type_handler_registry.register(type_hint=ipaddress.IPv4Address)
 class IPv4AddressHandler(StringHandler):
     format = "ipv4"
     structure_class = ipaddress.IPv4Address
@@ -312,7 +312,7 @@ class IPv4AddressHandler(StringHandler):
     destructure = staticmethod(structure_class.__str__)
 
 
-@register_default_type_handler(ipaddress.IPv6Address)
+@default_type_handler_registry.register(type_hint=ipaddress.IPv6Address)
 class IPv6AddressHandler(StringHandler):
     format = "ipv6"
     structure_class = ipaddress.IPv6Address
@@ -320,7 +320,7 @@ class IPv6AddressHandler(StringHandler):
     destructure = staticmethod(structure_class.__str__)
 
 
-@register_default_type_handler(Email)
+@default_type_handler_registry.register(type_hint=Email)
 class EmailHandler(StringHandler):
     format = "email"
     structure_class = Email
@@ -328,7 +328,7 @@ class EmailHandler(StringHandler):
     destructure = staticmethod(structure_class.__str__)
 
 
-@register_default_type_handler(Url)
+@default_type_handler_registry.register(type_hint=Url)
 class UrlHandler(StringHandler):
     format = "uri"
     structure_class = Url
@@ -336,7 +336,7 @@ class UrlHandler(StringHandler):
     destructure = staticmethod(structure_class.__str__)
 
 
-@register_default_type_handler(re.Pattern)
+@default_type_handler_registry.register(type_hint=re.Pattern)
 class PatternHandler(StringHandler):
     format = "regex"
     structure_class = re.Pattern
@@ -352,7 +352,7 @@ def destructure_uuid(value: uuid.UUID) -> bytes:
     return value.bytes
 
 
-@register_default_type_handler(uuid.UUID)
+@default_type_handler_registry.register(type_hint=uuid.UUID)
 class UuidHandler(BytesHandler):
     encoding = "base32hex"
     format = "uuid"
@@ -377,20 +377,20 @@ def is_path_structure_class(self, obj) -> bool:
     return obj.__class__ in (Path, WindowsPath, PosixPath)
 
 
-@register_default_type_handler(Path)
+@default_type_handler_registry.register(type_hint=Path)
 class PathHandler(StringHandler):
     structure_class = Path
     is_structure_class = is_path_structure_class
     structure = staticmethod(Path)
 
 
-@register_default_type_handler(PurePosixPath)
+@default_type_handler_registry.register(type_hint=PurePosixPath)
 class PurePosixPathHandler(StringHandler):
     structure_class = PurePosixPath
     structure = staticmethod(PurePosixPath)
 
 
-@register_default_type_handler(PureWindowsPath)
+@default_type_handler_registry.register(type_hint=PureWindowsPath)
 class PureWindowsPathHandler(StringHandler):
     structure_class = PureWindowsPath
     structure = staticmethod(PureWindowsPath)

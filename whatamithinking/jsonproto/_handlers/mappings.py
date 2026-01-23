@@ -20,7 +20,7 @@ from .._issues import (
     StructTypeIssue,
 )
 
-from .base import TypeHandler, register_default_type_handler
+from .base import TypeHandler, default_type_handler_registry
 
 __all__ = [
     "DictHandler",
@@ -158,19 +158,19 @@ class MappingHandler(TypeHandler):
         return Empty, issues
 
 
-@register_default_type_handler(dict)
+@default_type_handler_registry.register(type_hint=dict)
 class DictHandler(MappingHandler):
     structure_class = dict
     structure = structure_class
 
 
-@register_default_type_handler(OrderedDict)
+@default_type_handler_registry.register(type_hint=OrderedDict)
 class OrderedDictHandler(MappingHandler):
     structure_class = OrderedDict
     structure = structure_class
 
 
-@register_default_type_handler(defaultdict)
+@default_type_handler_registry.register(type_hint=defaultdict)
 class DefaultDictHandler(MappingHandler):
     structure_class = defaultdict
 
@@ -181,13 +181,13 @@ class DefaultDictHandler(MappingHandler):
         self.structure = self.structure_class(cached_get_args(self.type_hint)[1])
 
 
-@register_default_type_handler(MappingProxyType)
+@default_type_handler_registry.register(type_hint=MappingProxyType)
 class MappingProxyTypeHandler(MappingHandler):
     structure_class = MappingProxyType
     structure = structure_class
 
 
-@register_default_type_handler(MappingView)
+@default_type_handler_registry.register(type_hint=MappingView)
 class MappingViewHandler(MappingHandler):
     structure_class = MappingView
     structure = structure_class

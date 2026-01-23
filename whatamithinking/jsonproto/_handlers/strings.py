@@ -37,7 +37,7 @@ from .._constraints import (
     Pattern,
 )
 
-from .base import TypeHandler, register_default_type_handler
+from .base import TypeHandler, default_type_handler_registry
 
 __all__ = ["StringHandler"]
 
@@ -46,7 +46,7 @@ def is_structure_class(self: "StringHandler", obj: Any) -> bool:
     return obj.__class__ is self.structure_class
 
 
-@register_default_type_handler(str)
+@default_type_handler_registry.register(type_hint=str)
 class StringHandler(TypeHandler):
     data_type = "string"
     media_type = "text/plain"

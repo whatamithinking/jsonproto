@@ -31,7 +31,7 @@ from .._issues import (
 )
 from .._constraints import Length, Encoding
 
-from .base import TypeHandler, register_default_type_handler
+from .base import TypeHandler, default_type_handler_registry
 
 __all__ = [
     "BytesHandler",
@@ -364,7 +364,7 @@ class BytesLikeHandler(TypeHandler):
             return value, issues
 
 
-@register_default_type_handler(bytes)
+@default_type_handler_registry.register(type_hint=bytes)
 class BytesHandler(BytesLikeHandler):
     structure_class = bytes
     structure = structure_class
@@ -373,7 +373,7 @@ class BytesHandler(BytesLikeHandler):
     destructure = structure_class
 
 
-@register_default_type_handler(bytearray)
+@default_type_handler_registry.register(type_hint=bytearray)
 class ByteArrayHandler(BytesLikeHandler):
     structure_class = bytearray
     structure = structure_class
@@ -382,7 +382,7 @@ class ByteArrayHandler(BytesLikeHandler):
     destructure = structure_class
 
 
-@register_default_type_handler(memoryview)
+@default_type_handler_registry.register(type_hint=memoryview)
 class MemoryViewHandler(BytesLikeHandler):
     structure_class = memoryview
     structure = structure_class
