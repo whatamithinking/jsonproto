@@ -25,7 +25,6 @@ class OrjsonSerializer:
         "boolean": bool,
         "null": None,
     }
-    serialize_types = dict[type, T_DataType] = {}#TODO
 
     def __init__(self, option: int = 0) -> None:
         self._dumps = partial(dumps, option=option)
@@ -34,7 +33,6 @@ class OrjsonSerializer:
         try:
             data = self._dumps(value)
         except (TypeError, JSONEncodeError) as exc:
-
             raise ValidationError(
                 [
                     SerializeIssue(
@@ -46,7 +44,7 @@ class OrjsonSerializer:
             return data
         return data.decode()
 
-    def deserialize(self, value: bytes | str) -> Any:
+    def deserialize(self, value: bytes | bytearray | memoryview | str) -> Any:
         try:
             return loads(value)
         except JSONDecodeError as exc:
