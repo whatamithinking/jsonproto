@@ -1,4 +1,5 @@
-from typing import Any, ClassVar, Final
+from typing import Any, ClassVar, Final, Mapping
+from types import MappingProxyType
 from collections import ChainMap
 from itertools import chain
 
@@ -34,6 +35,14 @@ from ._common import (
 )
 from ._resolver import TypeHintResolution, resolve_type_hint
 from ._struct import struct, is_struct_instance, is_struct_class
+from .serializers.base import BaseSerializer
+
+# pick fastest available serializer as the default, always!
+try:
+    from .serializers.orjson import OrjsonSerializer as DefaultSerializer
+except ImportError:
+    from .serializers.json import JsonSerializer as DefaultSerializer
+
 
 __all__ = [
     "Config",
@@ -60,8 +69,13 @@ class Config:
 
 class Codec:
     def __init__(
-        self, type_handler_registry: TypeHandlerRegistry = default_type_handler_registry
+        self,
+        serializers: Mapping[str, BaseSerializer] | None = None,
+        type_handler_registry: TypeHandlerRegistry = default_type_handler_registry,
     ) -> None:
+        if not serializers:
+            serializers = {"default": DefaultSerializer()}
+        self._serializers = serializers
         self._type_handler_registry = type_handler_registry
         self._cache_handlers: dict[
             tuple[T_FuzzyTypeHint, Constraints, T_TypeHintValue], "TypeHandler"
@@ -248,6 +262,7 @@ class Codec:
         exclude_default: bool = False,
         extras_mode: T_ExtrasMode = "forbid",
         patches: Patches = Patches.empty,
+        serializer: str = "default",
     ) -> Any:
         if not coerce and not validate and not convert:
             return value
@@ -292,6 +307,11 @@ class Codec:
                 return ""
             return None
         included = include.matches(pointer)
+
+        try:
+            ser = self._serializers[serializer]
+        except KeyError:
+            raise ValueError(f"No serializer found with this name, {serializer}")
 
         raw_value = value
         if source in ("jsonstr", "jsonbytes") and (
