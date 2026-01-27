@@ -1,5 +1,6 @@
-from typing import Any, Protocol
+from typing import Any, Protocol, Optional
 from types import MappingProxyType
+from collections.abc import Buffer
 
 from .._constraints import T_DataType
 
@@ -17,10 +18,14 @@ class WritableBinaryStream(Protocol):
 
 
 class ReadableTextStream(Protocol):
+    encoding: str
+    buffer: Optional[Buffer]  # not required
     def read(self, size: int = -1, /) -> str: ...
 
 
 class WritableTextStream(Protocol):
+    encoding: str
+    buffer: Optional[Buffer]  # not required
     def write(self, s: str, /) -> int: ...
     def flush(self) -> None: ...
 

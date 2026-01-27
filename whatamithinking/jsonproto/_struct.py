@@ -25,7 +25,7 @@ from ._common import (
     BaseConstraint,
     cached_get_origin,
     cached_get_args,
-    T_FuzzyTypeHint,
+    FuzzyTypeHint,
 )
 
 __all__ = [
@@ -1379,22 +1379,19 @@ class StructGenerator:
         if constraints:
             cls._constraints_ = Constraints(constraints)
         args = (
-                init,
-                repr,
-                eq,
-                order,
-                frozen,
-                kw_only,
-                hash,
-                replace,
-                slots,
-                getitem,
-                setitem,
-            )
-        cls._params_ = (
-            self,
-            args
+            init,
+            repr,
+            eq,
+            order,
+            frozen,
+            kw_only,
+            hash,
+            replace,
+            slots,
+            getitem,
+            setitem,
         )
+        cls._params_ = (self, args)
         cls._fields_ = _lazy_fields
         if slots:
             # __slots__ must be defined when the class is created or it has no effect
@@ -1416,7 +1413,7 @@ class StructGenerator:
             cls.__setattr__ = _lazy_frozen_setattr
             cls.__delattr__ = _lazy_frozen_delattr
         else:
-            # BUG FIX: materialize __setattr__ immediately when mutable to avoid infinite recursion 
+            # BUG FIX: materialize __setattr__ immediately when mutable to avoid infinite recursion
             self._create_setattr(cls, *args)
         if hash:
             cls.__hash__ = _lazy_hash
@@ -1485,7 +1482,7 @@ def struct(
 
 def create_struct(
     name: str,
-    fields: dict[str, T_FuzzyTypeHint | field],
+    fields: dict[str, FuzzyTypeHint | field],
     /,
     *,
     bases: tuple[type, ...] = (),

@@ -15,10 +15,10 @@ from lru import LRU
 from ._common import (
     cached_get_args,
     cached_get_origin,
-    T_FuzzyTypeHint,
-    T_ResolvedTypeHint,
-    T_StringTypeHint,
-    T_UnresolvedTypeHint,
+    FuzzyTypeHint,
+    ResolvedTypeHint,
+    StringTypeHint,
+    UnresolvedTypeHint,
 )
 from ._struct import struct
 
@@ -28,16 +28,14 @@ __all__ = []
 @struct(slots=True)
 class TypeHintResolution:
     owner: type
-    original_type_hint: T_FuzzyTypeHint
+    original_type_hint: FuzzyTypeHint
     origin: type | None
-    type_hint: T_ResolvedTypeHint
+    type_hint: ResolvedTypeHint
     annotations: tuple
     is_partial: bool
 
 
-def _resolve_forward_ref(
-    type_hint: T_StringTypeHint, owner: type
-) -> T_UnresolvedTypeHint:
+def _resolve_forward_ref(type_hint: StringTypeHint, owner: type) -> UnresolvedTypeHint:
     globals = locals = None
     if isinstance(owner, type):
         locals = dict(vars(owner))
@@ -76,7 +74,7 @@ UNRESOLVED = UNRESOLVE_TYPE()
 
 
 def _resolve_type_hint(
-    type_hint: T_FuzzyTypeHint,
+    type_hint: FuzzyTypeHint,
     owner: type,
     resolve_forward_refs: bool,
     cache: dict | None = None,
@@ -163,7 +161,7 @@ _resolved_type_hint_cache = LRU(1024**2)
 
 
 def resolve_type_hint(
-    type_hint: T_FuzzyTypeHint,
+    type_hint: FuzzyTypeHint,
     resolve_forward_refs: bool = False,
     owner: type | None = None,
 ) -> TypeHintResolution:

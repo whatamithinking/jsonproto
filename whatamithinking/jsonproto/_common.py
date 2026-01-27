@@ -28,7 +28,7 @@ class EmptyMeta(type):
     def __repr__(cls):
         return "<Empty>"
 
-    def __bool__(cls): 
+    def __bool__(cls):
         return False
 
 
@@ -38,19 +38,16 @@ class Empty(metaclass=EmptyMeta): ...
 T = TypeVar("T")
 T_Key = TypeVar("T_Key")
 T_Value = TypeVar("T_Value")
-T_ExtrasMode = Literal["forbid", "roundtrip", "drop"]
-T_ValidateMode = Literal["all", "first"]
-T_SourceFormat = Literal["json", "unstruct", "struct"]
-T_TargetFormat = T_SourceFormat
-T_ResolvedTypeHint = type
-T_UnresolvedTypeHint = type
-T_StringTypeHint = str
-T_FuzzyTypeHint = T_ResolvedTypeHint | T_UnresolvedTypeHint | T_StringTypeHint
-T_TypeHintValue = Any | Empty
-T_CodecSerializationFormat = Literal["jsonstr", "jsonbytes", "jsonbinstream", "jsontextstream"]
-T_CodecSourceFormat = T_CodecSerializationFormat | T_SourceFormat
-T_CodecTargetFormat = T_CodecSourceFormat
-T_IsTypeCallback = Callable[[T_ResolvedTypeHint], bool]
+ExtrasMode = Literal["forbid", "roundtrip", "drop"]
+TypeHandlerFormat = Literal["json", "unstruct", "struct"]
+ResolvedTypeHint = type
+UnresolvedTypeHint = type
+StringTypeHint = str
+FuzzyTypeHint = ResolvedTypeHint | UnresolvedTypeHint | StringTypeHint
+TypeHintValue = Any | Empty
+CodecSerializationFormat = Literal["jsonstr", "jsonbytes", "binstream", "textstream"]
+CodecFormat = CodecSerializationFormat | TypeHandlerFormat
+IsTypeCallback = Callable[[ResolvedTypeHint], bool]
 JsonScalarType = float | int | bool | str | None
 JsonArrayType = list[Union[JsonScalarType, "JsonArrayType", "JsonObjectType"]]
 JsonObjectType = dict[str, Union[JsonScalarType, "JsonArrayType", "JsonObjectType"]]

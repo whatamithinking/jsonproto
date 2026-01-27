@@ -11,13 +11,13 @@ from .._pointers import JsonPointer
 from .._issues import BaseIssue
 from .._constraints import T_Encoding, T_DataType, T_MediaType, T_Format
 from .._common import (
-    T_TypeHintValue,
-    T_ResolvedTypeHint,
-    T_IsTypeCallback,
+    TypeHintValue,
+    ResolvedTypeHint,
+    IsTypeCallback,
     Constraints,
     Empty,
 )
-from .._resolver import resolve_type_hint, TypeHintResolution, T_FuzzyTypeHint
+from .._resolver import resolve_type_hint, TypeHintResolution, FuzzyTypeHint
 
 __all__ = [
     "TypeHandlerRegistry",
@@ -32,18 +32,18 @@ P = ParamSpec("P")
 R = TypeVar("R")
 T = TypeVar("T")
 T_TypeHandlerRegisterCallback = Callable[
-    [type["TypeHandler"], T_ResolvedTypeHint | Empty, T_IsTypeCallback | Empty], None
+    [type["TypeHandler"], ResolvedTypeHint | Empty, IsTypeCallback | Empty], None
 ]
 
 
 class TypeHandlerRegistry:
 
     def __init__(self, *registries: "TypeHandlerRegistry") -> None:
-        self._cache_handler_classes: dict[T_FuzzyTypeHint, type["TypeHandler"]] = {}
-        self._type_hint_handler_classes: dict[
-            T_ResolvedTypeHint, type["TypeHandler"]
-        ] = {}
-        self._callback_handler_classes: dict[T_IsTypeCallback, type["TypeHandler"]] = {}
+        self._cache_handler_classes: dict[FuzzyTypeHint, type["TypeHandler"]] = {}
+        self._type_hint_handler_classes: dict[ResolvedTypeHint, type["TypeHandler"]] = (
+            {}
+        )
+        self._callback_handler_classes: dict[IsTypeCallback, type["TypeHandler"]] = {}
         self._register_callbacks = list[weakref.ref[T_TypeHandlerRegisterCallback]]()
         # clear cache so we return the latest type handler class registered
         # unlikely to really be a problem in practice but because we are caching we are now
@@ -63,8 +63,8 @@ class TypeHandlerRegistry:
     def call_register_callbacks(
         self,
         type_handler_class: type[T] | Empty,
-        type_hint: T_ResolvedTypeHint | Empty,
-        callback: T_IsTypeCallback | Empty,
+        type_hint: ResolvedTypeHint | Empty,
+        callback: IsTypeCallback | Empty,
     ) -> None:
         for i in range(len(self._register_callbacks) - 1, -1, -1):
             register_callback = self._register_callbacks[i]()
@@ -83,8 +83,8 @@ class TypeHandlerRegistry:
         type_handler_class: type[T],
         /,
         *,
-        type_hint: T_ResolvedTypeHint | Empty = Empty,
-        callback: T_IsTypeCallback | Empty = Empty,
+        type_hint: ResolvedTypeHint | Empty = Empty,
+        callback: IsTypeCallback | Empty = Empty,
     ) -> type[T]: ...
 
     @overload
@@ -93,8 +93,8 @@ class TypeHandlerRegistry:
         type_handler_class: Empty = Empty,
         /,
         *,
-        type_hint: T_ResolvedTypeHint | Empty = Empty,
-        callback: T_IsTypeCallback | Empty = Empty,
+        type_hint: ResolvedTypeHint | Empty = Empty,
+        callback: IsTypeCallback | Empty = Empty,
     ) -> Callable[[type[T]], type[T]]: ...
 
     def register(
@@ -102,8 +102,8 @@ class TypeHandlerRegistry:
         type_handler_class: type[T] | Empty = Empty,
         /,
         *,
-        type_hint: T_ResolvedTypeHint | Empty = Empty,
-        callback: T_IsTypeCallback | Empty = Empty,
+        type_hint: ResolvedTypeHint | Empty = Empty,
+        callback: IsTypeCallback | Empty = Empty,
     ) -> type[T] | Callable[[type[T]], type[T]]:
         if type_hint is Empty and callback is Empty:
             raise ValueError("one of type_hint or callback must be given")
@@ -231,7 +231,7 @@ class TypeHandler:
         codec: "Codec",
         type_hint: type,
         constraints: Constraints,
-        type_hint_value: T_TypeHintValue = Empty,
+        type_hint_value: TypeHintValue = Empty,
     ) -> None:
         self._codec = weakref.ref(codec)
         self.type_hint = type_hint
@@ -262,7 +262,7 @@ class TypeHandler:
         self,
         type_hint: type,
         constraints: Constraints = Constraints.empty,
-        type_hint_value: T_TypeHintValue = Empty,
+        type_hint_value: TypeHintValue = Empty,
     ) -> Self:
         return self.codec.get_type_handler(
             type_hint=type_hint,
