@@ -21,7 +21,7 @@ from .._issues import (
     LengthIssue,
 )
 from .._common import cached_get_args
-from .._registry import default_type_handler_registry
+from .._registry import default_type_registry
 
 from .base import BaseTypeHandler
 
@@ -136,7 +136,9 @@ class SequenceHandler(BaseTypeHandler):
                 (self.type_handler_registry.get_type_handler(type_hint=item_types[0]),)
             )
         else:
-            self._item_type_handlers = tuple(map(self.type_handler_registry.get_type_handler, item_types))
+            self._item_type_handlers = tuple(
+                map(self.type_handler_registry.get_type_handler, item_types)
+            )
         self._length_validators = []
         if not self.constraints:
             return
@@ -286,27 +288,27 @@ class SequenceHandler(BaseTypeHandler):
         return Empty, issues
 
 
-@default_type_handler_registry.register(type_hint=list)
+@default_type_registry.register_type_handler(type_hint=list)
 class ListHandler(SequenceHandler):
     structure_class = list
 
 
-@default_type_handler_registry.register(type_hint=set)
+@default_type_registry.register_type_handler(type_hint=set)
 class SetHandler(SequenceHandler):
     structure_class = set
 
 
-@default_type_handler_registry.register(type_hint=frozenset)
+@default_type_registry.register_type_handler(type_hint=frozenset)
 class FrozenSetHandler(SequenceHandler):
     structure_class = frozenset
 
 
-@default_type_handler_registry.register(type_hint=deque)
+@default_type_registry.register_type_handler(type_hint=deque)
 class DequeHandler(SequenceHandler):
     structure_class = deque
 
 
-@default_type_handler_registry.register(type_hint=tuple)
+@default_type_registry.register_type_handler(type_hint=tuple)
 class TupleHandler(SequenceHandler):
     structure_class = tuple
 

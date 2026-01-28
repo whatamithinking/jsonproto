@@ -14,13 +14,14 @@ if TYPE_CHECKING:
     from ._handlers.base import BaseTypeHandler
 
 from ._errors import TypeHandlerMissingError
-from ._constraints import DataTypeName
 from ._common import (
     TypeHintValue,
     ResolvedTypeHint,
     IsTypeCallback,
     Constraints,
     Empty,
+    Constraints,
+    BaseConstraint,
 )
 from ._resolver import resolve_type_hint, TypeHintResolution, FuzzyTypeHint
 
@@ -31,18 +32,19 @@ T_TypeHandlerRegisterCallback = Callable[
 ]
 
 
-class TypeHandlerRegistry:
+class TypeRegistry:
 
-    def __init__(self, *registries: "TypeHandlerRegistry") -> None:
+    def __init__(self, *registries: "TypeRegistry") -> None:
         self._type_hint_handler_classes: dict[
             ResolvedTypeHint, type["BaseTypeHandler"]
         ] = {}
         self._callback_handler_classes: dict[
             IsTypeCallback, type["BaseTypeHandler"]
         ] = {}
-        self._registries = list["TypeHandlerRegistry"]()
-        self._type_hint_to_json_types: dict[ResolvedTypeHint, DataTypeName] = {}
-        self._callback_to_json_types: dict[ResolvedTypeHint, DataTypeName] = {}
+        self._registries = list[TypeRegistry]()
+
+        self._type_hint_to_constraints: dict[ResolvedTypeHint, Constraints] = {}
+        self._callback_to_constraints: dict[ResolvedTypeHint, Constraints] = {}
 
         self._cache_handler_classes: dict[FuzzyTypeHint, type["BaseTypeHandler"]] = {}
         self._cache_handlers: dict[
@@ -57,24 +59,26 @@ class TypeHandlerRegistry:
         for registry in registries:
             self.add_registry(registry)
 
-    def _add_callbacks_to_registry(self, registry: "TypeHandlerRegistry") -> None:
+    def _add_callbacks_to_registry(self, registry: "TypeRegistry") -> None:
         # register this registry's callbacks with the new registry so we can clear our caches
         # whenever the new registry changes
-        registry.add_register_callback(self._cache_handler_classes.clear)
-        registry.add_register_callback(self._cache_handlers.clear)
+        registry.add_register_type_handler_callback(self._cache_handler_classes.clear)
+        registry.add_register_type_handler_callback(self._cache_handlers.clear)
 
-    def add_registry(self, registry: "TypeHandlerRegistry") -> None:
+    def add_registry(self, registry: "TypeRegistry") -> None:
         self._add_callbacks_to_registry(registry)
         self._registries.append(registry)
 
-    def add_register_callback(self, callback: T_TypeHandlerRegisterCallback, /) -> None:
+    def add_register_type_handler_callback(
+        self, callback: T_TypeHandlerRegisterCallback, /
+    ) -> None:
         if inspect.ismethod(callback):
             register_callback_ref = weakref.WeakMethod(callback)
         else:
             register_callback_ref = weakref.ref(callback)
         self._register_callbacks.append(register_callback_ref)
 
-    def call_register_callbacks(
+    def call_register_type_handler_callbacks(
         self,
         type_handler_class: type[T] | Empty,
         type_hint: ResolvedTypeHint | Empty,
@@ -91,17 +95,25 @@ class TypeHandlerRegistry:
                     callback=callback,
                 )
 
-    def register_type(
+    def register_type_constraints(
         self,
-        data_type: DataTypeName,
+        *constraints: BaseConstraint,
         type_hint: ResolvedTypeHint | Empty = Empty,
         callback: IsTypeCallback | Empty = Empty,
     ):
-        
-        pass
+        constraints = Constraints(constraints)
+        if type_hint is not Empty:
+            thr = resolve_type_hint(type_hint=type_hint)
+            if thr.is_partial:
+                raise TypeError(
+                    "stringified types not supported during type handler registration"
+                )
+            self._type_hint_to_constraints[thr.type_hint] = constraints
+        else:
+            self._callback_to_constraints[callback] = constraints
 
     @overload
-    def register(
+    def register_type_handler(
         self,
         type_handler_class: type[T],
         /,
@@ -111,7 +123,7 @@ class TypeHandlerRegistry:
     ) -> type[T]: ...
 
     @overload
-    def register(
+    def register_type_handler(
         self,
         type_handler_class: Empty = Empty,
         /,
@@ -120,7 +132,7 @@ class TypeHandlerRegistry:
         callback: IsTypeCallback | Empty = Empty,
     ) -> Callable[[type[T]], type[T]]: ...
 
-    def register(
+    def register_type_handler(
         self,
         type_handler_class: type[T] | Empty = Empty,
         /,
@@ -143,7 +155,7 @@ class TypeHandlerRegistry:
                 self._type_hint_handler_classes[thr.type_hint] = type_handler_class
             else:
                 self._callback_handler_classes[callback] = type_handler_class
-            self.call_register_callbacks()
+            self.call_register_type_handler_callbacks()
             return type_handler_class
 
         # if called like a function with type handler class given
@@ -275,4 +287,4 @@ class TypeHandlerRegistry:
             return type_handler
 
 
-default_type_handler_registry = TypeHandlerRegistry()
+default_type_registry = TypeRegistry()

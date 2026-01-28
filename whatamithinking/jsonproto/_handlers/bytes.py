@@ -30,7 +30,7 @@ from .._issues import (
     FormatIssue,
 )
 from .._constraints import Length, Encoding
-from .._registry import default_type_handler_registry
+from .._registry import default_type_registry
 
 from .base import BaseTypeHandler
 
@@ -365,7 +365,7 @@ class BytesLikeHandler(BaseTypeHandler):
             return value, issues
 
 
-@default_type_handler_registry.register(type_hint=bytes)
+@default_type_registry.register_type_handler(type_hint=bytes)
 class BytesHandler(BytesLikeHandler):
     structure_class = bytes
     structure = structure_class
@@ -374,7 +374,7 @@ class BytesHandler(BytesLikeHandler):
     destructure = structure_class
 
 
-@default_type_handler_registry.register(type_hint=bytearray)
+@default_type_registry.register_type_handler(type_hint=bytearray)
 class ByteArrayHandler(BytesLikeHandler):
     structure_class = bytearray
     structure = structure_class
@@ -383,7 +383,7 @@ class ByteArrayHandler(BytesLikeHandler):
     destructure = structure_class
 
 
-@default_type_handler_registry.register(type_hint=memoryview)
+@default_type_registry.register_type_handler(type_hint=memoryview)
 class MemoryViewHandler(BytesLikeHandler):
     structure_class = memoryview
     structure = structure_class

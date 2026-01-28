@@ -18,15 +18,15 @@ from .._issues import (
     MissingDiscriminatorIssue,
     InvalidDiscriminatorIssue,
 )
-from .._registry import default_type_handler_registry
+from .._registry import default_type_registry
 
 from .base import BaseTypeHandler
 
 __all__ = ["UnionHandler"]
 
 
-@default_type_handler_registry.register(type_hint=Union)
-@default_type_handler_registry.register(type_hint=UnionType)
+@default_type_registry.register_type_handler(type_hint=Union)
+@default_type_registry.register_type_handler(type_hint=UnionType)
 class UnionHandler(BaseTypeHandler):
     data_type = "object"
 
@@ -65,8 +65,10 @@ class UnionHandler(BaseTypeHandler):
             if len(args) == 2 and (args[0] is NoneType or args[1] is NoneType):
                 # Find the non-None type
                 non_none_type = args[1] if args[0] is NoneType else args[0]
-                self._optional_type_handler = self.type_handler_registry.get_type_handler(
-                    type_hint=non_none_type, constraints=self.constraints
+                self._optional_type_handler = (
+                    self.type_handler_registry.get_type_handler(
+                        type_hint=non_none_type, constraints=self.constraints
+                    )
                 )
                 self._handle = self._nullable_handle
             else:

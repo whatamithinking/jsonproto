@@ -6,8 +6,8 @@ from functools import partial
 from lru import LRU
 
 from ._registry import (
-    TypeHandlerRegistry,
-    default_type_handler_registry,
+    TypeRegistry,
+    default_type_registry,
 )
 from ._pointers import (
     JsonPath,
@@ -73,7 +73,7 @@ class Codec:
     def __init__(
         self,
         serializers: Mapping[str, BaseSerializer] | None = None,
-        type_handler_registry: TypeHandlerRegistry = default_type_handler_registry,
+        type_handler_registry: TypeRegistry = default_type_registry,
     ) -> None:
         if not serializers:
             serializers = {"default": DefaultSerializer()}

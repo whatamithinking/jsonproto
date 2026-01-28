@@ -30,14 +30,14 @@ from .._issues import (
     DisjointIssue,
     MissingFieldIssue,
 )
-from .._registry import default_type_handler_registry
+from .._registry import default_type_registry
 
 from .base import BaseTypeHandler
 
 __all__ = ["ModelHandler"]
 
 
-@default_type_handler_registry.register(callback=is_struct_class)
+@default_type_registry.register_type_handler(callback=is_struct_class)
 class ModelHandler(BaseTypeHandler):
     __slots__ = (
         "constraints",

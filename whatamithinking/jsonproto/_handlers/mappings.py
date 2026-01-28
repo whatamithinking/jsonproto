@@ -19,7 +19,7 @@ from .._issues import (
     BaseIssue,
     StructTypeIssue,
 )
-from .._registry import default_type_handler_registry
+from .._registry import default_type_registry
 
 from .base import BaseTypeHandler
 
@@ -47,8 +47,12 @@ class MappingHandler(BaseTypeHandler):
                 f"Generic arg(s) required but not given for {self.type_hint!r}",
             )
         key_type_hint, value_type_hint = args
-        self._key_type_handler = self.type_handler_registry.get_type_handler(type_hint=key_type_hint)
-        self._value_type_handler = self.type_handler_registry.get_type_handler(type_hint=value_type_hint)
+        self._key_type_handler = self.type_handler_registry.get_type_handler(
+            type_hint=key_type_hint
+        )
+        self._value_type_handler = self.type_handler_registry.get_type_handler(
+            type_hint=value_type_hint
+        )
 
     def handle(
         self,
@@ -159,19 +163,19 @@ class MappingHandler(BaseTypeHandler):
         return Empty, issues
 
 
-@default_type_handler_registry.register(type_hint=dict)
+@default_type_registry.register_type_handler(type_hint=dict)
 class DictHandler(MappingHandler):
     structure_class = dict
     structure = structure_class
 
 
-@default_type_handler_registry.register(type_hint=OrderedDict)
+@default_type_registry.register_type_handler(type_hint=OrderedDict)
 class OrderedDictHandler(MappingHandler):
     structure_class = OrderedDict
     structure = structure_class
 
 
-@default_type_handler_registry.register(type_hint=defaultdict)
+@default_type_registry.register_type_handler(type_hint=defaultdict)
 class DefaultDictHandler(MappingHandler):
     structure_class = defaultdict
 
@@ -182,13 +186,13 @@ class DefaultDictHandler(MappingHandler):
         self.structure = self.structure_class(cached_get_args(self.type_hint)[1])
 
 
-@default_type_handler_registry.register(type_hint=MappingProxyType)
+@default_type_registry.register_type_handler(type_hint=MappingProxyType)
 class MappingProxyTypeHandler(MappingHandler):
     structure_class = MappingProxyType
     structure = structure_class
 
 
-@default_type_handler_registry.register(type_hint=MappingView)
+@default_type_registry.register_type_handler(type_hint=MappingView)
 class MappingViewHandler(MappingHandler):
     structure_class = MappingView
     structure = structure_class

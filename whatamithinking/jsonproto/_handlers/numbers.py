@@ -20,7 +20,7 @@ from .._constraints import (
     Format,
     Value,
 )
-from .._registry import default_type_handler_registry
+from .._registry import default_type_registry
 
 from .base import BaseTypeHandler
 
@@ -285,7 +285,7 @@ class NumberLikeHandler(BaseTypeHandler):
             return value, issues
 
 
-@default_type_handler_registry.register(type_hint=int)
+@default_type_registry.register_type_handler(type_hint=int)
 class IntHandler(NumberLikeHandler):
     data_type = "integer"
     structure_class = int
@@ -309,7 +309,7 @@ class IntHandler(NumberLikeHandler):
         return value
 
 
-@default_type_handler_registry.register(type_hint=float)
+@default_type_registry.register_type_handler(type_hint=float)
 class FloatHandler(NumberLikeHandler):
     data_type = "number"
     structure_class = float
@@ -333,7 +333,7 @@ class FloatHandler(NumberLikeHandler):
         return value
 
 
-@default_type_handler_registry.register(type_hint=Decimal)
+@default_type_registry.register_type_handler(type_hint=Decimal)
 class DecimalHandler(NumberLikeHandler):
     data_type = "string"
     structure_class = Decimal

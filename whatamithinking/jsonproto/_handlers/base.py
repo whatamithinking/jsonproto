@@ -4,7 +4,7 @@ from types import MethodType
 
 if TYPE_CHECKING:
     from .._codec import Config
-    from .._registry import TypeHandlerRegistry
+    from .._registry import TypeRegistry
 
 from .._pointers import JsonPointer
 from .._issues import BaseIssue
@@ -66,7 +66,7 @@ class BaseTypeHandler:
 
     def __init__(
         self,
-        type_handler_registry: TypeHandlerRegistry,
+        type_handler_registry: TypeRegistry,
         type_hint: type,
         constraints: Constraints,
         type_hint_value: TypeHintValue = Empty,
