@@ -1,7 +1,4 @@
-from typing import Any, ClassVar, Final, Mapping
-from types import MappingProxyType
-from collections import ChainMap
-from itertools import chain
+from typing import Any, Mapping
 import shutil
 from io import TextIOWrapper, DEFAULT_BUFFER_SIZE
 from functools import partial
@@ -9,7 +6,6 @@ from functools import partial
 from lru import LRU
 
 from ._handlers import (
-    TypeHandler,
     TypeHandlerRegistry,
     default_type_handler_registry,
 )
@@ -17,26 +13,19 @@ from ._pointers import (
     JsonPath,
     JsonPointer,
 )
-from ._issues import DeserializeIssue, SerializeIssue
 from ._patches import Patches
-from ._errors import TypeHandlerMissingError, ValidationError
+from ._errors import ValidationError
 from ._common import (
-    Constraints,
     ExtrasMode,
-    FuzzyTypeHint,
     UnresolvedTypeHint,
-    ResolvedTypeHint,
     TypeHandlerFormat,
     TypeHandlerFormat,
     TypeHintValue,
-    IsTypeCallback,
     CodecFormat,
     CodecFormat,
-    CodecSerializationFormat,
     Metadata,
     Empty,
 )
-from ._resolver import TypeHintResolution, resolve_type_hint
 from ._struct import struct, is_struct_instance, is_struct_class
 from .serializers.base import BaseSerializer, WritableTextStream, WritableBinaryStream
 
@@ -90,10 +79,6 @@ class Codec:
             serializers = {"default": DefaultSerializer()}
         self._serializers = serializers
         self._type_handler_registry = type_handler_registry
-        self._cache_handlers: dict[
-            tuple[FuzzyTypeHint, Constraints, TypeHintValue], "TypeHandler"
-        ] = {}
-        self._type_handler_registry.add_register_callback(self._cache_handlers.clear)
         # LRU cache for Config instances with optimized key generation
         self._config_cache = LRU(1024)
 
@@ -154,77 +139,6 @@ class Codec:
             )
             self._config_cache[key] = config
             return config
-
-    def get_type_handler(
-        self,
-        type_hint: FuzzyTypeHint,
-        constraints: Constraints = Constraints.empty,
-        type_hint_value: TypeHintValue = Empty,
-    ) -> "TypeHandler":
-        try:
-            return self._cache_handlers[(type_hint, constraints, type_hint_value)]
-        except KeyError:
-            type_hint_resolution = resolve_type_hint(type_hint=type_hint)
-            if type_hint_resolution.is_partial:
-                raise TypeError("could not fully resolve type hint")
-            # special case: ClassVar/Final type hints are effectively Literal with one value but
-            # the value is not included in the type hint so we need to get it from the caller
-            # and use it to index off of and create a new type handler for each one since the default
-            # needs to be provided to each instance of the type handler
-            if type_hint_resolution.origin in (ClassVar, Final):
-                if type_hint_value is Empty:
-                    raise ValueError(
-                        "type_hint_value must be given when getting the type handler for ClassVar or Final"
-                    )
-            elif type_hint_value is not Empty:
-                type_hint_value = (
-                    Empty  # always ignore the value otherwise so instances dont explode
-                )
-                try:
-                    return self._cache_handlers[
-                        (type_hint, constraints, type_hint_value)
-                    ]
-                except KeyError:
-                    pass
-
-            total_constraints = Constraints(
-                chain(
-                    (
-                        _
-                        for _ in type_hint_resolution.annotations
-                        if hasattr(_, "constraint_type")
-                    ),
-                    constraints,
-                )
-            )
-            type_handler_class = self._type_handler_registry.get(
-                type_hint_resolution=type_hint_resolution
-            )
-            type_handler = type_handler_class(
-                codec=self,
-                type_hint=type_hint_resolution.type_hint,
-                constraints=total_constraints,
-                type_hint_value=type_hint_value,
-            )
-            # index off the original input exactly in case this is given again
-            self._cache_handlers[
-                (
-                    type_hint_resolution.original_type_hint,
-                    constraints,
-                    type_hint_value,
-                )
-            ] = type_handler
-            # index off the type hint alone without any annotations and with all the constraints
-            # stripped off and provided separately in case a caller provides just the type hint and
-            # the same set of constraints previously provided through the annotations
-            self._cache_handlers[
-                (
-                    type_hint_resolution.type_hint,
-                    total_constraints,
-                    type_hint_value,
-                )
-            ] = type_handler
-            return type_handler
 
     def execute(
         self,
@@ -373,7 +287,7 @@ class Codec:
         if patches:
             input = patches.patch("source", "value", pointer, input)
 
-        type_handler = self.get_type_handler(
+        type_handler = self._type_handler_registry.get_type_handler(
             type_hint=type_hint, type_hint_value=type_hint_value
         )
         input, issues = type_handler.handle(

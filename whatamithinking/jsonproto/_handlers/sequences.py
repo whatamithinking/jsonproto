@@ -131,10 +131,10 @@ class SequenceHandler(TypeHandler):
             )
         elif len(item_types) == 1:
             self._item_type_handlers = cycle(
-                (self.get_type_handler(type_hint=item_types[0]),)
+                (self.type_handler_registry.get_type_handler(type_hint=item_types[0]),)
             )
         else:
-            self._item_type_handlers = tuple(map(self.get_type_handler, item_types))
+            self._item_type_handlers = tuple(map(self.type_handler_registry.get_type_handler, item_types))
         self._length_validators = []
         if not self.constraints:
             return

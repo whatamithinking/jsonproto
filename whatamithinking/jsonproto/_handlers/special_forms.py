@@ -35,7 +35,7 @@ class ClassVarHandler(TypeHandler):
             raise MissingGenericsError(
                 f"Generic arg required but not given for {self.type_hint!r}",
             )
-        self._type_handler = self.get_type_handler(
+        self._type_handler = self.type_handler_registry.get_type_handler(
             type_hint=args[0], constraints=self.constraints
         )
         self.python_value = self.type_hint_value
@@ -109,7 +109,7 @@ class LiteralHandler(TypeHandler):
         self._struct_type_handlers = dict(
             (
                 arg,
-                self.get_type_handler(
+                self.type_handler_registry.get_type_handler(
                     type_hint=arg.__class__, constraints=self.constraints
                 ),
             )

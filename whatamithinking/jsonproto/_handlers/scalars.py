@@ -120,7 +120,7 @@ class EnumHandler(TypeHandler):
         while issubclass(base_type, enum.Enum):
             base_type = base_type.__bases__[0]
 
-        self._type_handler = self.get_type_handler(
+        self._type_handler = self.type_handler_registry.get_type_handler(
             type_hint=base_type, constraints=self.constraints
         )
         self.python_options = frozenset(_.value for _ in self.type_hint)

@@ -46,8 +46,8 @@ class MappingHandler(TypeHandler):
                 f"Generic arg(s) required but not given for {self.type_hint!r}",
             )
         key_type_hint, value_type_hint = args
-        self._key_type_handler = self.get_type_handler(type_hint=key_type_hint)
-        self._value_type_handler = self.get_type_handler(type_hint=value_type_hint)
+        self._key_type_handler = self.type_handler_registry.get_type_handler(type_hint=key_type_hint)
+        self._value_type_handler = self.type_handler_registry.get_type_handler(type_hint=value_type_hint)
 
     def handle(
         self,

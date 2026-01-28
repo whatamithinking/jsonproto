@@ -64,7 +64,7 @@ class UnionHandler(TypeHandler):
             if len(args) == 2 and (args[0] is NoneType or args[1] is NoneType):
                 # Find the non-None type
                 non_none_type = args[1] if args[0] is NoneType else args[0]
-                self._optional_type_handler = self.get_type_handler(
+                self._optional_type_handler = self.type_handler_registry.get_type_handler(
                     type_hint=non_none_type, constraints=self.constraints
                 )
                 self._handle = self._nullable_handle
@@ -112,7 +112,7 @@ class UnionHandler(TypeHandler):
                 )
             else:
                 self._disc_type_handlers[disc_value] = type_handler = (
-                    self.get_type_handler(
+                    self.type_handler_registry.get_type_handler(
                         type_hint=type_hint, constraints=self.constraints
                     )
                 )
@@ -161,7 +161,7 @@ class UnionHandler(TypeHandler):
                 except:
                     break
                 else:
-                    type_handler = self.get_type_handler(
+                    type_handler = self.type_handler_registry.get_type_handler(
                         type_hint=type_hint, constraints=self.constraints
                     )
                     self._type_handlers[i] = type_handler

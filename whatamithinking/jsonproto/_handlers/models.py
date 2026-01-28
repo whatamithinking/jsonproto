@@ -114,7 +114,7 @@ class ModelHandler(TypeHandler):
                     "Disjoint/dependent constraints can only be used in the model decorator "
                     "and not in the field annotations."
                 )
-            type_handler = self.get_type_handler(
+            type_handler = self.type_handler_registry.get_type_handler(
                 type_hint=type_hint_resolution.type_hint,
                 constraints=field.constraints,
                 type_hint_value=field.default,

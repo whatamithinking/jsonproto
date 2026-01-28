@@ -1,10 +1,11 @@
-from typing import Any, Callable, TypeVar, ParamSpec, TYPE_CHECKING, Self, overload
+from typing import Any, Callable, TypeVar, ParamSpec, TYPE_CHECKING, overload, ClassVar, Final
 import inspect
 from types import MethodType
 import weakref
+from itertools import chain
 
 if TYPE_CHECKING:
-    from .._codec import Codec, Config
+    from .._codec import Config
 
 from .._errors import TypeHandlerMissingError
 from .._pointers import JsonPointer
@@ -40,18 +41,21 @@ class TypeHandlerRegistry:
 
     def __init__(self, *registries: "TypeHandlerRegistry") -> None:
         self._cache_handler_classes: dict[FuzzyTypeHint, type["TypeHandler"]] = {}
+        self._cache_handlers: dict[
+            tuple[FuzzyTypeHint, Constraints, TypeHintValue], "TypeHandler"
+        ] = {}
         self._type_hint_handler_classes: dict[ResolvedTypeHint, type["TypeHandler"]] = (
             {}
         )
         self._callback_handler_classes: dict[IsTypeCallback, type["TypeHandler"]] = {}
         self._register_callbacks = list[weakref.ref[T_TypeHandlerRegisterCallback]]()
+        self._registries = registries
         # clear cache so we return the latest type handler class registered
         # unlikely to really be a problem in practice but because we are caching we are now
         # open late registrations potentially changing things up after the fact
-        self.add_register_callback(self._cache_handler_classes.clear)
-        self._registries = registries
-        for registry in self._registries:
+        for registry in (self, *self._registries):
             registry.add_register_callback(self._cache_handler_classes.clear)
+            registry.add_register_callback(self._cache_handlers.clear)
 
     def add_register_callback(self, callback: T_TypeHandlerRegisterCallback, /) -> None:
         if inspect.ismethod(callback):
@@ -129,7 +133,7 @@ class TypeHandlerRegistry:
         else:  # if used as decorator, where type handler class will be empty
             return register_type_handler_wrapper
 
-    def get(self, type_hint_resolution: TypeHintResolution) -> type["TypeHandler"]:
+    def get_type_handler_class(self, type_hint_resolution: TypeHintResolution) -> type["TypeHandler"]:
         try:
             return self._cache_handler_classes[type_hint_resolution.type_hint]
         except KeyError:
@@ -162,7 +166,7 @@ class TypeHandlerRegistry:
                 # to be changing type handlers returned on the fly from one call to the next
                 for registry in self._registries:
                     try:
-                        type_hint_class = registry.get(
+                        type_hint_class = registry.get_type_handler_class(
                             type_hint_resolution=type_hint_resolution
                         )
                         break
@@ -177,6 +181,77 @@ class TypeHandlerRegistry:
             )
             self._cache_handler_classes[type_hint_option] = type_hint_class
             return type_hint_class
+
+    def get_type_handler(
+        self,
+        type_hint: FuzzyTypeHint,
+        constraints: Constraints = Constraints.empty,
+        type_hint_value: TypeHintValue = Empty,
+    ) -> "TypeHandler":
+        try:
+            return self._cache_handlers[(type_hint, constraints, type_hint_value)]
+        except KeyError:
+            type_hint_resolution = resolve_type_hint(type_hint=type_hint)
+            if type_hint_resolution.is_partial:
+                raise TypeError("could not fully resolve type hint")
+            # special case: ClassVar/Final type hints are effectively Literal with one value but
+            # the value is not included in the type hint so we need to get it from the caller
+            # and use it to index off of and create a new type handler for each one since the default
+            # needs to be provided to each instance of the type handler
+            if type_hint_resolution.origin in (ClassVar, Final):
+                if type_hint_value is Empty:
+                    raise ValueError(
+                        "type_hint_value must be given when getting the type handler for ClassVar or Final"
+                    )
+            elif type_hint_value is not Empty:
+                type_hint_value = (
+                    Empty  # always ignore the value otherwise so instances dont explode
+                )
+                try:
+                    return self._cache_handlers[
+                        (type_hint, constraints, type_hint_value)
+                    ]
+                except KeyError:
+                    pass
+
+            total_constraints = Constraints(
+                chain(
+                    (
+                        _
+                        for _ in type_hint_resolution.annotations
+                        if hasattr(_, "constraint_type")
+                    ),
+                    constraints,
+                )
+            )
+            type_handler_class = self.get_type_handler_class(
+                type_hint_resolution=type_hint_resolution
+            )
+            type_handler = type_handler_class(
+                type_handler_registry=self,
+                type_hint=type_hint_resolution.type_hint,
+                constraints=total_constraints,
+                type_hint_value=type_hint_value,
+            )
+            # index off the original input exactly in case this is given again
+            self._cache_handlers[
+                (
+                    type_hint_resolution.original_type_hint,
+                    constraints,
+                    type_hint_value,
+                )
+            ] = type_handler
+            # index off the type hint alone without any annotations and with all the constraints
+            # stripped off and provided separately in case a caller provides just the type hint and
+            # the same set of constraints previously provided through the annotations
+            self._cache_handlers[
+                (
+                    type_hint_resolution.type_hint,
+                    total_constraints,
+                    type_hint_value,
+                )
+            ] = type_handler
+            return type_handler
 
 
 default_type_handler_registry = TypeHandlerRegistry()
@@ -228,12 +303,12 @@ class TypeHandler:
 
     def __init__(
         self,
-        codec: "Codec",
+        type_handler_registry: TypeHandlerRegistry,
         type_hint: type,
         constraints: Constraints,
         type_hint_value: TypeHintValue = Empty,
     ) -> None:
-        self._codec = weakref.ref(codec)
+        self.type_handler_registry = type_handler_registry
         self.type_hint = type_hint
         self.constraints = constraints
         self.type_hint_value = type_hint_value
@@ -253,22 +328,6 @@ class TypeHandler:
         method = getattr(cls, "handle", None)
         if method is not None:
             setattr(cls, "handle", prebuild(cls, method))
-
-    @property
-    def codec(self) -> "Codec":
-        return self._codec()
-
-    def get_type_handler(
-        self,
-        type_hint: type,
-        constraints: Constraints = Constraints.empty,
-        type_hint_value: TypeHintValue = Empty,
-    ) -> Self:
-        return self.codec.get_type_handler(
-            type_hint=type_hint,
-            constraints=constraints,
-            type_hint_value=type_hint_value,
-        )
 
     def build(self) -> None: ...
 
