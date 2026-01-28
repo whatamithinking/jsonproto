@@ -25,7 +25,7 @@ from .._issues import (
 from .._errors import ValidationError
 from .._types import Email, Url
 
-from .base import TypeHandler, default_type_handler_registry
+from .base import BaseTypeHandler, default_type_handler_registry
 from .strings import StringHandler
 from .bytes import BytesHandler
 
@@ -48,7 +48,7 @@ __all__ = [
 
 
 @default_type_handler_registry.register(type_hint=bool)
-class BoolHandler(TypeHandler):
+class BoolHandler(BaseTypeHandler):
     data_type = "boolean"
     media_type = "text/plain"
 
@@ -77,7 +77,7 @@ class BoolHandler(TypeHandler):
 
 @default_type_handler_registry.register(type_hint=NoneType)
 @default_type_handler_registry.register(type_hint=None)
-class NoneHandler(TypeHandler):
+class NoneHandler(BaseTypeHandler):
     data_type = "null"
     media_type = "text/plain"
 
@@ -109,7 +109,7 @@ def is_enum(cls):
 
 
 @default_type_handler_registry.register(callback=is_enum)
-class EnumHandler(TypeHandler):
+class EnumHandler(BaseTypeHandler):
     type_hint: enum.Enum
 
     def build(self):

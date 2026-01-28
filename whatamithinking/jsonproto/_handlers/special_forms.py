@@ -11,7 +11,7 @@ from .._issues import (
 )
 from .._errors import MissingGenericsError, ValidationError
 from .._common import cached_get_args, Empty
-from .base import TypeHandler, default_type_handler_registry
+from .base import BaseTypeHandler, default_type_handler_registry
 
 __all__ = [
     "ClassVarHandler",
@@ -21,7 +21,7 @@ __all__ = [
 
 
 @default_type_handler_registry.register(type_hint=ClassVar)
-class ClassVarHandler(TypeHandler):
+class ClassVarHandler(BaseTypeHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if self.type_hint_value is Empty:
@@ -97,7 +97,7 @@ class FinalHandler(ClassVarHandler): ...
 
 
 @default_type_handler_registry.register(type_hint=Literal)
-class LiteralHandler(TypeHandler):
+class LiteralHandler(BaseTypeHandler):
     def build(self):
         from .._codec import Config
         

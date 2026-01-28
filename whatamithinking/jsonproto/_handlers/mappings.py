@@ -20,7 +20,7 @@ from .._issues import (
     StructTypeIssue,
 )
 
-from .base import TypeHandler, default_type_handler_registry
+from .base import BaseTypeHandler, default_type_handler_registry
 
 __all__ = [
     "DictHandler",
@@ -31,7 +31,7 @@ __all__ = [
 ]
 
 
-class MappingHandler(TypeHandler):
+class MappingHandler(BaseTypeHandler):
     data_type = "object"
     media_type = "application/json"
     structure_class: type

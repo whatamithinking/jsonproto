@@ -21,7 +21,7 @@ from .._issues import (
     LengthIssue,
 )
 from .._common import cached_get_args
-from .base import TypeHandler, default_type_handler_registry
+from .base import BaseTypeHandler, default_type_handler_registry
 
 __all__ = [
     "ListHandler",
@@ -32,7 +32,7 @@ __all__ = [
 ]
 
 
-class SequenceHandler(TypeHandler):
+class SequenceHandler(BaseTypeHandler):
     data_type = "array"
     media_type = "application/json"
     structure_class = None

@@ -19,14 +19,14 @@ from .._issues import (
     InvalidDiscriminatorIssue,
 )
 
-from .base import TypeHandler, default_type_handler_registry
+from .base import BaseTypeHandler, default_type_handler_registry
 
 __all__ = ["UnionHandler"]
 
 
 @default_type_handler_registry.register(type_hint=Union)
 @default_type_handler_registry.register(type_hint=UnionType)
-class UnionHandler(TypeHandler):
+class UnionHandler(BaseTypeHandler):
     data_type = "object"
 
     def build(self) -> None:

@@ -31,7 +31,7 @@ from .._issues import (
 )
 from .._constraints import Length, Encoding
 
-from .base import TypeHandler, default_type_handler_registry
+from .base import BaseTypeHandler, default_type_handler_registry
 
 __all__ = [
     "BytesHandler",
@@ -43,7 +43,7 @@ __all__ = [
 T_BytesLike = bytes | bytearray | memoryview
 
 
-class BytesLikeHandler(TypeHandler):
+class BytesLikeHandler(BaseTypeHandler):
     data_type = "string"
     media_type = "application/octet-stream"
     encoding = "base64"

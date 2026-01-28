@@ -21,7 +21,7 @@ from .._constraints import (
     Value,
 )
 
-from .base import TypeHandler, default_type_handler_registry
+from .base import BaseTypeHandler, default_type_handler_registry
 
 __all__ = [
     "IntHandler",
@@ -30,7 +30,7 @@ __all__ = [
 ]
 
 
-class NumberLikeHandler(TypeHandler):
+class NumberLikeHandler(BaseTypeHandler):
     media_type = "text/plain"
     structure_class: type
     structure: Callable[[Any], Any]
