@@ -33,7 +33,7 @@ P = ParamSpec("P")
 R = TypeVar("R")
 T = TypeVar("T")
 T_TypeHandlerRegisterCallback = Callable[
-    [type["TypeHandler"], ResolvedTypeHint | Empty, IsTypeCallback | Empty], None
+    [type["BaseTypeHandler"], ResolvedTypeHint | Empty, IsTypeCallback | Empty], None
 ]
 
 
