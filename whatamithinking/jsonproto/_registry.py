@@ -54,7 +54,7 @@ class TypeHandlerRegistry:
         # unlikely to really be a problem in practice but because we are caching we are now
         # open late registrations potentially changing things up after the fact
         self._add_callbacks_to_registry(self)
-        for registry in (self, *registries):
+        for registry in registries:
             self.add_registry(registry)
 
     def _add_callbacks_to_registry(self, registry: "TypeHandlerRegistry") -> None:
