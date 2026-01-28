@@ -5,7 +5,7 @@ from functools import partial
 
 from lru import LRU
 
-from ._handlers import (
+from ._registry import (
     TypeHandlerRegistry,
     default_type_handler_registry,
 )

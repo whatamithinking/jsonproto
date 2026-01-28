@@ -30,8 +30,9 @@ from .._issues import (
     FormatIssue,
 )
 from .._constraints import Length, Encoding
+from .._registry import default_type_handler_registry
 
-from .base import BaseTypeHandler, default_type_handler_registry
+from .base import BaseTypeHandler
 
 __all__ = [
     "BytesHandler",

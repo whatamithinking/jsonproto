@@ -21,7 +21,9 @@ from .._issues import (
     LengthIssue,
 )
 from .._common import cached_get_args
-from .base import BaseTypeHandler, default_type_handler_registry
+from .._registry import default_type_handler_registry
+
+from .base import BaseTypeHandler
 
 __all__ = [
     "ListHandler",

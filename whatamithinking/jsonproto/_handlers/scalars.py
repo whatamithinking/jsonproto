@@ -24,8 +24,9 @@ from .._issues import (
 )
 from .._errors import ValidationError
 from .._types import Email, Url
+from .._registry import default_type_handler_registry
 
-from .base import BaseTypeHandler, default_type_handler_registry
+from .base import BaseTypeHandler
 from .strings import StringHandler
 from .bytes import BytesHandler
 
