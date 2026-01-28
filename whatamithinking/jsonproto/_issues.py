@@ -6,11 +6,11 @@ from collections.abc import Mapping, Sequence
 
 from ._struct import struct, field
 from ._constraints import (
-    T_DataType,
-    T_Format,
-    T_Encoding,
-    T_LengthComparator,
-    T_ValueComparator,
+    DataTypeName,
+    FormatName,
+    Encoding,
+    LengthComparator,
+    ValueComparator,
 )
 from ._pointers import JsonPointer
 from ._common import JsonType
@@ -48,10 +48,10 @@ class StructTypeIssue(BaseIssue):
 @struct
 class JsonTypeIssue(BaseIssue):
     issue_type: ClassVar[str] = "json_type"
-    expected_type: T_DataType
+    expected_type: DataTypeName
 
     @field(cache=True)
-    def actual_type(self) -> T_DataType:
+    def actual_type(self) -> DataTypeName:
         match self.value:
             case NoneType():
                 return "null"
@@ -76,19 +76,19 @@ class JsonTypeIssue(BaseIssue):
 @struct
 class FormatIssue(BaseIssue):
     issue_type: ClassVar[str] = "format"
-    format: T_Format
+    format: FormatName
 
 
 @struct
 class DecodingIssue(BaseIssue):
     issue_type: ClassVar[str] = "decoding"
-    encoding: T_Encoding
+    encoding: Encoding
 
 
 @struct
 class EncodingIssue(BaseIssue):
     issue_type: ClassVar[str] = "encoding"
-    encoding: T_Encoding
+    encoding: Encoding
 
 
 @struct
@@ -101,7 +101,7 @@ class PatternIssue(BaseIssue):
 @struct
 class LengthIssue(BaseIssue):
     issue_type: ClassVar[str] = "length"
-    comparator: T_LengthComparator
+    comparator: LengthComparator
     value: str | list
     limit: int
 
@@ -113,7 +113,7 @@ class LengthIssue(BaseIssue):
 @struct
 class NumberIssue(BaseIssue):
     issue_type: ClassVar[str] = "number"
-    comparator: T_ValueComparator
+    comparator: ValueComparator
     value: Number
     limit: Number
 

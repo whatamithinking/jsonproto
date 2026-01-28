@@ -19,7 +19,7 @@ from types import MappingProxyType
 from lru import LRU
 
 if TYPE_CHECKING:
-    from ._constraints import T_ConstraintType, T_ConstraintId
+    from ._constraints import ConstraintType, ConstraintId
 
 __all__ = ["Empty"]
 
@@ -100,8 +100,8 @@ class _ConstraintCache(type):
 
 
 class BaseConstraint(metaclass=_ConstraintCache):
-    constraint_type: ClassVar["T_ConstraintType"]
-    constraint_id: ClassVar["T_ConstraintId"]
+    constraint_type: ClassVar["ConstraintType"]
+    constraint_id: ClassVar["ConstraintId"]
 
 
 class Constraints:
@@ -112,7 +112,7 @@ class Constraints:
         if not constraints:
             raise ValueError("Use Constraints.empty instead")
         self = super().__new__(cls)
-        self._mapping: dict["T_ConstraintId", BaseConstraint | deque[BaseConstraint]] = {}  # type: ignore
+        self._mapping: dict["ConstraintId", BaseConstraint | deque[BaseConstraint]] = {}  # type: ignore
         self._extend(constraints)
         return self
 
@@ -153,7 +153,7 @@ class Constraints:
             return reversed(self._build_values())
 
     def get(
-        self, constraint_id: "T_ConstraintId", default: T = None
+        self, constraint_id: "ConstraintId", default: T = None
     ) -> BaseConstraint | deque[BaseConstraint] | T:
         return self._mapping.get(constraint_id, default)
 

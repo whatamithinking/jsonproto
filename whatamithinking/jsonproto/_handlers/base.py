@@ -1,4 +1,13 @@
-from typing import Any, Callable, TypeVar, ParamSpec, TYPE_CHECKING, overload, ClassVar, Final
+from typing import (
+    Any,
+    Callable,
+    TypeVar,
+    ParamSpec,
+    TYPE_CHECKING,
+    overload,
+    ClassVar,
+    Final,
+)
 import inspect
 from types import MethodType
 import weakref
@@ -10,7 +19,7 @@ if TYPE_CHECKING:
 from .._errors import TypeHandlerMissingError
 from .._pointers import JsonPointer
 from .._issues import BaseIssue
-from .._constraints import T_Encoding, T_DataType, T_MediaType, T_Format
+from .._constraints import Encoding, DataTypeName, MediaTypeName, FormatName
 from .._common import (
     TypeHintValue,
     ResolvedTypeHint,
@@ -40,16 +49,20 @@ T_TypeHandlerRegisterCallback = Callable[
 class TypeHandlerRegistry:
 
     def __init__(self, *registries: "TypeHandlerRegistry") -> None:
+        self._type_hint_handler_classes: dict[
+            ResolvedTypeHint, type["BaseTypeHandler"]
+        ] = {}
+        self._callback_handler_classes: dict[
+            IsTypeCallback, type["BaseTypeHandler"]
+        ] = {}
+        self._registries = registries
+        self._native_to_json_types: dict[Any, DataTypeName]
+
         self._cache_handler_classes: dict[FuzzyTypeHint, type["BaseTypeHandler"]] = {}
         self._cache_handlers: dict[
             tuple[FuzzyTypeHint, Constraints, TypeHintValue], "BaseTypeHandler"
         ] = {}
-        self._type_hint_handler_classes: dict[ResolvedTypeHint, type["BaseTypeHandler"]] = (
-            {}
-        )
-        self._callback_handler_classes: dict[IsTypeCallback, type["BaseTypeHandler"]] = {}
         self._register_callbacks = list[weakref.ref[T_TypeHandlerRegisterCallback]]()
-        self._registries = registries
         # clear cache so we return the latest type handler class registered
         # unlikely to really be a problem in practice but because we are caching we are now
         # open late registrations potentially changing things up after the fact
@@ -133,7 +146,9 @@ class TypeHandlerRegistry:
         else:  # if used as decorator, where type handler class will be empty
             return register_type_handler_wrapper
 
-    def get_type_handler_class(self, type_hint_resolution: TypeHintResolution) -> type["BaseTypeHandler"]:
+    def get_type_handler_class(
+        self, type_hint_resolution: TypeHintResolution
+    ) -> type["BaseTypeHandler"]:
         try:
             return self._cache_handler_classes[type_hint_resolution.type_hint]
         except KeyError:
@@ -296,10 +311,10 @@ class prebuild:
 
 class BaseTypeHandler:
     # schema info for use in generating the open api spec
-    data_type: T_DataType
-    media_type: T_MediaType | None = None
-    format: T_Format | None = None
-    encoding: T_Encoding | None = None
+    data_type: DataTypeName
+    media_type: MediaTypeName | None = None
+    format: FormatName | None = None
+    encoding: Encoding | None = None
 
     def __init__(
         self,

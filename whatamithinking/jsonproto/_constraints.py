@@ -7,10 +7,10 @@ from ._common import BaseConstraint, make_cache_key, cached_get_args
 
 
 __all__ = [
-    "T_MediaType",
-    "T_Encoding",
-    "T_Format",
-    "T_DataType",
+    "MediaTypeName",
+    "EncodingName",
+    "FormatName",
+    "DataTypeName",
     "Value",
     "Length",
     "Alias",
@@ -37,7 +37,7 @@ __all__ = [
 ]
 
 
-T_ConstraintType = Literal[
+ConstraintType = Literal[
     "value",
     "length",
     "alias",
@@ -62,7 +62,7 @@ T_ConstraintType = Literal[
     "dependent",
     "required",
 ]
-T_ConstraintId = Literal[
+ConstraintId = Literal[
     "value_eq",
     "value_gt",
     "value_ge",
@@ -125,8 +125,8 @@ T_ConstraintId = Literal[
 ]
 
 
-T_ValueComparator = Literal["eq", "gt", "ge", "le", "lt"]
-T_ValueConstraintId = Literal[
+ValueComparator = Literal["eq", "gt", "ge", "le", "lt"]
+ValueConstraintId = Literal[
     "value_eq",
     "value_gt",
     "value_ge",
@@ -134,7 +134,7 @@ T_ValueConstraintId = Literal[
     "value_lt",
 ]
 _value_comparators = dict(
-    zip(cached_get_args(T_ValueComparator), cached_get_args(T_ValueConstraintId))
+    zip(cached_get_args(ValueComparator), cached_get_args(ValueConstraintId))
 )
 
 
@@ -146,7 +146,7 @@ _value_comparators = dict(
 
 @struct(kw_only=False)
 class Value(BaseConstraint):
-    comparator: T_ValueComparator
+    comparator: ValueComparator
     value: int | float | Decimal
     constraint_type: ClassVar[str] = "value"
 
@@ -157,12 +157,12 @@ class Value(BaseConstraint):
             )
 
     @field(cache=True)
-    def constraint_id(self) -> T_ValueConstraintId:
+    def constraint_id(self) -> ValueConstraintId:
         return _value_comparators[self.comparator]
 
 
-T_LengthComparator = Literal["eq", "gt", "ge", "le", "lt"]
-T_LengthConstraintId = Literal[
+LengthComparator = Literal["eq", "gt", "ge", "le", "lt"]
+LengthConstraintId = Literal[
     "length_eq",
     "length_gt",
     "length_ge",
@@ -170,13 +170,13 @@ T_LengthConstraintId = Literal[
     "length_lt",
 ]
 _length_comparators = dict(
-    zip(cached_get_args(T_LengthComparator), cached_get_args(T_LengthConstraintId))
+    zip(cached_get_args(LengthComparator), cached_get_args(LengthConstraintId))
 )
 
 
 @struct(kw_only=False)
 class Length(BaseConstraint):
-    comparator: T_LengthComparator
+    comparator: LengthComparator
     value: int
     constraint_type: ClassVar[str] = "length"
 
@@ -191,7 +191,7 @@ class Length(BaseConstraint):
             )
 
     @field(cache=True)
-    def constraint_id(self) -> T_LengthConstraintId:
+    def constraint_id(self) -> LengthConstraintId:
         return _length_comparators[self.comparator]
 
 
@@ -263,67 +263,69 @@ class Discriminator(BaseConstraint):
 
 # per https://www.rfc-editor.org/rfc/rfc4648
 # non-exhaustive. add more as needed
-T_Encoding = Literal[
+EncodingName = Literal[
     "base64",
     "base32",
     "base32hex",
     "base16",
 ]
-T_EncodingConstraintId = Literal[
+EncodingConstraintId = Literal[
     "encoding_base64",
     "encoding_base32",
     "encoding_base32hex",
     "encoding_base16",
 ]
-_encodings = dict(zip(cached_get_args(T_Encoding), cached_get_args(T_EncodingConstraintId)))
+_encodings = dict(
+    zip(cached_get_args(EncodingName), cached_get_args(EncodingConstraintId))
+)
 
 
 @struct(kw_only=False)
 class Encoding(BaseConstraint):
-    value: T_Encoding
+    value: EncodingName
     constraint_type: ClassVar[str] = "encoding"
 
     @field(cache=True)
-    def constraint_id(self) -> T_EncodingConstraintId:
+    def constraint_id(self) -> EncodingConstraintId:
         return _encodings[self.value]
 
 
 # per https://datatracker.ietf.org/doc/html/draft-bhutton-json-schema-validation-00#section-7.3
 # some options are omitted if they are not yet supported by this implementation
-T_DateTimeFormat = Literal["date-time", "date", "time", "duration"]
-T_EmailFormat = Literal["email"]
-T_HostnameFormat = Literal["hostname"]
-T_IpAddressFormat = Literal[
+DateTimeFormatName = Literal["date-time", "date", "time", "duration"]
+EmailFormatName = Literal["email"]
+HostnameFormatName = Literal["hostname"]
+IpAddressFormatName = Literal[
     "ipv4",
     "ipv6",
 ]
-T_UriFormat = Literal[
+UriFormatName = Literal[
     "uri",
     "uri-reference",
 ]
-T_UuidFormat = Literal["uuid"]
-T_RegexFormat = Literal["regex"]
+UuidFormatName = Literal["uuid"]
+RegexFormatName = Literal["regex"]
 # per OAS https://spec.openapis.org/oas/v3.1.0#dataTypeFormat
-T_NumberFormat = Literal[
+NumberFormatName = Literal[
     "int32",
     "int64",
     "float",
     "double",
 ]
 # per OAS https://spec.openapis.org/oas/v3.1.0#dataTypeFormat
-T_PasswordFormat = Literal["password"]
-T_Format = (
-    T_DateTimeFormat
-    | T_EmailFormat
-    | T_HostnameFormat
-    | T_IpAddressFormat
-    | T_UriFormat
-    | T_UuidFormat
-    | T_RegexFormat
-    | T_NumberFormat
-    | T_PasswordFormat
+PasswordFormatName = Literal["password"]
+FormatName = (
+    DateTimeFormatName
+    | EmailFormatName
+    | HostnameFormatName
+    | IpAddressFormatName
+    | UriFormatName
+    | UuidFormatName
+    | RegexFormatName
+    | NumberFormatName
+    | PasswordFormatName
 )
-T_FormatConstraintId = Literal[
+FormatConstraintId = Literal[
     "format_date_time",
     "format_date",
     "format_time",
@@ -344,14 +346,14 @@ T_FormatConstraintId = Literal[
 ]
 _formats = dict(
     (fval, f"format_{fval.replace('-', '_')}")
-    for t_format in cached_get_args(T_Format)
+    for t_format in cached_get_args(FormatName)
     for fval in cached_get_args(t_format)
 )
 
 
 @struct(kw_only=False)
 class Format(BaseConstraint):
-    value: T_Format
+    value: FormatName
     constraint_type: ClassVar[str] = "format"
 
     def _post_init_(self) -> None:
@@ -359,7 +361,7 @@ class Format(BaseConstraint):
             raise ValueError(f"Format, {self.value}, not valid")
 
     @field(cache=True)
-    def constraint_id(self) -> T_FormatConstraintId:
+    def constraint_id(self) -> FormatConstraintId:
         return _formats[self.value]
 
 
@@ -413,10 +415,10 @@ class DefaultFactory(BaseConstraint):
 
 # https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types/Common_types
 # non-exhaustive list, but if we need more we can add them. if problematic, can allow generic str type
-T_MediaType = Literal[
+MediaTypeName = Literal[
     "text/plain", "application/json", "application/octet-stream", "multipart/form-data"
 ]
-T_MediaTypeConstraintId = Literal[
+MediaTypeConstraintId = Literal[
     "media_type_text_plain",
     "media_type_application_json",
     "media_type_application_octet_stream",
@@ -424,13 +426,13 @@ T_MediaTypeConstraintId = Literal[
 ]
 _media_types = dict(
     (mt, f"media_type_{mt.replace("/", "_").replace("-", "_")}")
-    for mt in cached_get_args(T_MediaType)
+    for mt in cached_get_args(MediaTypeName)
 )
 
 
 @struct(kw_only=False)
 class MediaType(BaseConstraint):
-    value: T_MediaType
+    value: MediaTypeName
     constraint_type: ClassVar[str] = "media_type"
 
     def _post_init_(self) -> None:
@@ -438,14 +440,14 @@ class MediaType(BaseConstraint):
             raise ValueError(f"Media type, {self.value!r}, is not valid")
 
     @field(cache=True)
-    def constraint_id(self) -> T_MediaTypeConstraintId:
+    def constraint_id(self) -> MediaTypeConstraintId:
         return _media_types[self.value]
 
 
-T_DataType = Literal[
+DataTypeName = Literal[
     "integer", "number", "string", "boolean", "null", "array", "object"
 ]
-T_DataTypeConstraintId = Literal[
+DataTypeConstraintId = Literal[
     "data_type_integer",
     "data_type_number",
     "data_type_string",
@@ -454,12 +456,12 @@ T_DataTypeConstraintId = Literal[
     "data_type_array",
     "data_type_object",
 ]
-_data_types = dict(zip(cached_get_args(T_DataType), T_DataTypeConstraintId))
+_data_types = dict(zip(cached_get_args(DataTypeName), DataTypeConstraintId))
 
 
 @struct(kw_only=False)
 class DataType(BaseConstraint):
-    value: T_DataType
+    value: DataTypeName
     constraint_type: ClassVar[str] = "data_type"
 
     def _post_init_(self) -> None:
@@ -469,7 +471,7 @@ class DataType(BaseConstraint):
             )
 
     @field(cache=True)
-    def constraint_id(self) -> T_DataTypeConstraintId:
+    def constraint_id(self) -> DataTypeConstraintId:
         return _data_types[self.value]
 
 
