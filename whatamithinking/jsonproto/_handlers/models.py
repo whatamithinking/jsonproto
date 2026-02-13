@@ -119,7 +119,8 @@ class ModelHandler(TypeHandler):
                 constraints=field.constraints,
                 type_hint_value=field.default,
             )
-            alias: str | None = field.constraints.get("alias")
+            alias_constraint = field.constraints.get("alias")
+            alias = alias_constraint.value if alias_constraint else None
             if not alias:
                 alias = get_alias(name)
             name_to_alias[name] = alias
