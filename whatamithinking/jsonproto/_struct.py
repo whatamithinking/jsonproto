@@ -432,6 +432,18 @@ class StructGenerator:
 
         cls_dict_get = cls.__dict__.get
 
+        # update all the fields from parents with new settings if they were changed in this
+        # child class. for example, we might have a parent which is frozen and a child which is not
+        # without these updates, we would still be showing the settings from the parent
+        if fields_dict:
+            old_field = next(iter(fields_dict.values()))
+            old_field_get = old_field.__dict__.__getitem__
+            old_field_attrs = [old_field_get(k) for k in common_field_attrs.keys()]
+            new_field_attrs = list(common_field_attrs.values())
+            if old_field_attrs != new_field_attrs:
+                for f in fields_dict.values():
+                    f.__dict__.update(common_field_attrs)
+
         # pickup fields defined as attributes on the class
         for fn, type_hint in get_annotations(cls).items():
             field_attrs = common_field_attrs.copy()
@@ -468,7 +480,9 @@ class StructGenerator:
             fields_dict[fn] = f
 
         # update each of the computed fields with the settings for the model
-        for fn in getattr(cls, _COMPUTED, ()):
+        # only get the computed fields from this class and not any of the parents which have already been
+        # processes and added to the field set
+        for fn in cls_dict_get(_COMPUTED, ()):
             f = cls_dict_get(fn)
             is_cached = f.is_cached
             if frozen and f.is_cached is None:
