@@ -120,6 +120,9 @@ class field:
     fget = None
     is_computed = False
     is_cached = None
+    replace = False
+    getitem = False
+    setitem = False
 
     def __init__(self, fget=None, /, *, cache=None):
         if fget is not None:
@@ -154,11 +157,14 @@ class field:
             f"frozen={self.frozen!r},"
             f"kw_only={self.kw_only!r},"
             f"hash={self.hash!r},"
+            f"replace={self.replace!r},"
+            f"getitem={self.getitem!r},"
+            f"setitem={self.setitem!r},"
+            f"is_computed={self.is_computed!r},"
+            f"is_cached={self.is_cached!r},"
             f"default={self.default!r},"
             f"default_factory={self.default_factory!r},"
-            f"is_computed={self.is_computed!r},"
-            f"constraints={self.constraints!r},"
-            f"is_cached={self.is_cached!r}"
+            f"constraints={self.constraints!r}"
             ")"
         )
 
@@ -427,7 +433,10 @@ class StructGenerator:
             frozen=frozen,
             kw_only=kw_only,
             hash=hash,
+            replace=replace,
             slots=slots,
+            getitem=getitem,
+            setitem=setitem,
         )
 
         cls_dict_get = cls.__dict__.get
