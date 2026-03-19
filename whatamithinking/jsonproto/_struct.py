@@ -595,13 +595,13 @@ class StructGenerator:
             if field_count == 0:
                 func = template_function
             else:
+                name_map = {f"_field_{i}": field_names[i] for i in range(field_count)}
                 func = template_function.__class__(
                     template_function.__code__.replace(
-                        co_names=(
-                            "__class__",
-                            "NotImplemented",
-                        )
-                        + field_names,
+                        co_names=tuple(
+                            name_map.get(n, n)
+                            for n in template_function.__code__.co_names
+                        ),
                     ),
                     template_function.__globals__,
                 )
@@ -704,9 +704,16 @@ class StructGenerator:
                 # actual field names. use dict-based substitution so we are not sensitive
                 # to the exact ordering of co_names / co_consts, which can vary by field
                 # count due to CPython's internal compilation thresholds
-                old_name_to_new = {f'_field_{i}': field_names[i] for i in range(field_count)}
-                new_co_names = tuple(old_name_to_new.get(n, n) for n in template_function.__code__.co_names)
-                old_const_to_new = {f'_field_{i}=': f'{field_names[i]}=' for i in range(field_count)}
+                old_name_to_new = {
+                    f"_field_{i}": field_names[i] for i in range(field_count)
+                }
+                new_co_names = tuple(
+                    old_name_to_new.get(n, n)
+                    for n in template_function.__code__.co_names
+                )
+                old_const_to_new = {
+                    f"_field_{i}=": f"{field_names[i]}=" for i in range(field_count)
+                }
                 new_co_consts = tuple(
                     old_const_to_new.get(c, c) if isinstance(c, str) else c
                     for c in template_function.__code__.co_consts
@@ -861,26 +868,16 @@ class StructGenerator:
             if field_count == 0:
                 func = template_function
             else:
-                if frozen:
-                    func = template_function.__class__(
-                        template_function.__code__.replace(
-                            co_names=(
-                                _FROZEN_HASH,
-                                "AttributeError",
-                                "obj_setattr",
-                                "hash",
-                            )
-                            + field_names,
+                name_map = {f"_field_{i}": field_names[i] for i in range(field_count)}
+                func = template_function.__class__(
+                    template_function.__code__.replace(
+                        co_names=tuple(
+                            name_map.get(n, n)
+                            for n in template_function.__code__.co_names
                         ),
-                        template_function.__globals__,
-                    )
-                else:
-                    func = template_function.__class__(
-                        template_function.__code__.replace(
-                            co_names=("hash",) + field_names,
-                        ),
-                        template_function.__globals__,
-                    )
+                    ),
+                    template_function.__globals__,
+                )
             self._cache_hash_exact[exact_key] = func
         cls.__hash__ = func
 
@@ -1031,21 +1028,15 @@ class StructGenerator:
         kw_only: bool,
         optional_names: tuple[str],
     ) -> FunctionType:
+        name_map = {f"_field_{i}": field_names[i] for i in range(len(field_names))}
         func = template_function.__class__(  # type: ignore
             template_function.__code__.replace(  # type: ignore
-                co_varnames=(
-                    "self",
-                    *field_names,
-                    "setted",
-                    "post_init",
+                co_varnames=tuple(
+                    name_map.get(n, n) for n in template_function.__code__.co_varnames
                 ),
-                co_consts=(
-                    None,
-                    _SETTED,
-                    *field_names,
-                    _POST_INIT,
-                    _INITIALIZED,
-                    True,
+                co_consts=tuple(
+                    name_map.get(c, c) if isinstance(c, str) else c
+                    for c in template_function.__code__.co_consts
                 ),
             ),
             template_function.__globals__  # type: ignore
@@ -1072,35 +1063,21 @@ class StructGenerator:
         kw_only: bool,
         optional_names: tuple[str],
     ) -> FunctionType:
+        # only map _field_i (exact) to field_names[i]; _field_i_default_factory and
+        # _field_i_default are globals and must stay unchanged
+        name_map = {f"_field_{i}": field_names[i] for i in range(len(field_names))}
         func = template_function.__class__(  # type: ignore
             template_function.__code__.replace(  # type: ignore
-                co_names=(
-                    "set",
-                    _SETTED,
-                    "Empty",
-                    f"_field_0_default_factory",
-                    field_names[0],
-                    f"_field_0_default",
-                    "add",
-                    *tuple(
-                        con
-                        for i, field_name in enumerate(field_names[1:])
-                        for con in (
-                            f"_field_{i+1}_default_factory",
-                            field_name,
-                            f"_field_{i+1}_default",
-                        )
-                    ),
-                    "getattr",
-                    _INITIALIZED,
+                co_names=tuple(
+                    name_map.get(n, n) for n in template_function.__code__.co_names
                 ),
-                co_varnames=(
-                    "self",
-                    *field_names,
-                    "setted",
-                    "post_init",
+                co_varnames=tuple(
+                    name_map.get(n, n) for n in template_function.__code__.co_varnames
                 ),
-                co_consts=(None, *field_names, _POST_INIT, True),
+                co_consts=tuple(
+                    name_map.get(c, c) if isinstance(c, str) else c
+                    for c in template_function.__code__.co_consts
+                ),
             ),
             template_function.__globals__  # type: ignore
             | dict((f"_field_{i}_default", d) for i, d in enumerate(field_defaults))
@@ -1122,14 +1099,16 @@ class StructGenerator:
         template_function: FunctionType,
         field_names: tuple[str],
     ) -> FunctionType:
+        name_map = {f"_field_{i}": field_names[i] for i in range(len(field_names))}
         func = template_function.__class__(  # type: ignore
             template_function.__code__.replace(  # type: ignore
-                co_varnames=(
-                    "self",
-                    *field_names,
-                    "post_init",
+                co_varnames=tuple(
+                    name_map.get(n, n) for n in template_function.__code__.co_varnames
                 ),
-                co_consts=(None, *field_names, _POST_INIT, _INITIALIZED, True),
+                co_consts=tuple(
+                    name_map.get(c, c) if isinstance(c, str) else c
+                    for c in template_function.__code__.co_consts
+                ),
             ),
             template_function.__globals__,
         )
@@ -1142,14 +1121,15 @@ class StructGenerator:
         template_function: FunctionType,
         field_names: tuple[str],
     ) -> FunctionType:
+        name_map = {f"_field_{i}": field_names[i] for i in range(len(field_names))}
         func = template_function.__class__(  # type: ignore
             template_function.__code__.replace(  # type: ignore
-                co_names=(
-                    *field_names,
-                    "getattr",
-                    _INITIALIZED,
+                co_names=tuple(
+                    name_map.get(n, n) for n in template_function.__code__.co_names
                 ),
-                co_varnames=("self", *field_names, "post_init"),
+                co_varnames=tuple(
+                    name_map.get(n, n) for n in template_function.__code__.co_varnames
+                ),
             ),
             template_function.__globals__,
         )
@@ -1386,22 +1366,19 @@ class StructGenerator:
         if constraints:
             cls._constraints_ = Constraints(constraints)
         args = (
-                init,
-                repr,
-                eq,
-                order,
-                frozen,
-                kw_only,
-                hash,
-                replace,
-                slots,
-                getitem,
-                setitem,
-            )
-        cls._params_ = (
-            self,
-            args
+            init,
+            repr,
+            eq,
+            order,
+            frozen,
+            kw_only,
+            hash,
+            replace,
+            slots,
+            getitem,
+            setitem,
         )
+        cls._params_ = (self, args)
         cls._fields_ = _lazy_fields
         if slots:
             # __slots__ must be defined when the class is created or it has no effect
@@ -1423,7 +1400,7 @@ class StructGenerator:
             cls.__setattr__ = _lazy_frozen_setattr
             cls.__delattr__ = _lazy_frozen_delattr
         else:
-            # BUG FIX: materialize __setattr__ immediately when mutable to avoid infinite recursion 
+            # BUG FIX: materialize __setattr__ immediately when mutable to avoid infinite recursion
             self._create_setattr(cls, *args)
         if hash:
             cls.__hash__ = _lazy_hash
