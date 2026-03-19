@@ -123,6 +123,7 @@ class field:
     replace = False
     getitem = False
     setitem = False
+    _is_required = None  # cached after _create_fields runs
 
     def __init__(self, fget=None, /, *, cache=None):
         if fget is not None:
@@ -133,6 +134,9 @@ class field:
 
     @property
     def is_required(self) -> bool:
+        cached = self._is_required
+        if cached is not None:
+            return cached
         # if Required constraint explicitly provided, base off that; otherwise
         # we infer based on other settings
         required = self.constraints.get("required")
@@ -227,12 +231,22 @@ def get_fields(obj: type[StructProto] | StructProto) -> MappingProxyType[str, "f
 
     Accepts a model or an instance of one.
     """
-    return MappingProxyType(obj._fields_)
+    cls = obj if isinstance(obj, type) else type(obj)
+    try:
+        return cls.__dict__["_fields_proxy_"]
+    except KeyError:
+        obj._fields_  # trigger lazy build → populates all caches
+        return cls.__dict__["_fields_proxy_"]
 
 
 def get_names(obj: type[StructProto] | StructProto) -> tuple[str]:
     """Return a collection of the field names"""
-    return tuple(obj._fields_.keys())
+    cls = obj if isinstance(obj, type) else type(obj)
+    try:
+        return cls.__dict__["_field_names_"]
+    except KeyError:
+        obj._fields_  # trigger lazy build → populates all caches
+        return cls.__dict__["_field_names_"]
 
 
 _empty_computed = frozenset()
@@ -249,16 +263,24 @@ def get_computed(obj: type[StructProto] | StructProto) -> frozenset[str]:
 def get_required(obj: type[StructProto] | StructProto) -> frozenset[str]:
     """Return a set of field names on the model which are required
     (i.e. their values must be given on init)"""
-    return frozenset(name for name, field in obj._fields_.items() if field.is_required)
+    cls = obj if isinstance(obj, type) else type(obj)
+    try:
+        return cls.__dict__["_required_names_"]
+    except KeyError:
+        obj._fields_  # trigger lazy build → populates all caches
+        return cls.__dict__["_required_names_"]
 
 
 def get_optional(obj: type[StructProto] | StructProto) -> frozenset[str]:
     """Return a set of field names on the model which are optional
     (i.e. they have default values or are computed so they dont have to be given on init)
     """
-    return frozenset(
-        name for name, field in obj._fields_.items() if not field.is_required
-    )
+    cls = obj if isinstance(obj, type) else type(obj)
+    try:
+        return cls.__dict__["_optional_names_"]
+    except KeyError:
+        obj._fields_  # trigger lazy build → populates all caches
+        return cls.__dict__["_optional_names_"]
 
 
 _default_setted = frozenset()
@@ -302,9 +324,7 @@ def __replace__(self, **changes):
     # are part of the changes so the new one does not look like every field
     # was initialized with a value from the caller
     changes.update(
-        dict(
-            (name, getattr(self, name)) for name in (get_setted(self) - changes.keys())
-        )
+        (name, getattr(self, name)) for name in (get_setted(self) - changes.keys())
     )
     return self.__class__(**changes)
 
@@ -512,15 +532,32 @@ class StructGenerator:
                     constraints = Constraints(constraints_args)
             f.__dict__.update(common_field_attrs)
             f.__dict__.update(
-                dict(
-                    name=fn,
-                    is_cached=is_cached,
-                    type_hint=type_hint,
-                    constraints=constraints,
-                )
+                {
+                    "name": fn,
+                    "is_cached": is_cached,
+                    "type_hint": type_hint,
+                    "constraints": constraints,
+                }
             )
             fields_dict[fn] = f
 
+        # Cache is_required on each field so the property skips recomputation
+        # do here at last possible moment in case anything on the fields change
+        # which might cause is_required to change
+        for f in fields_dict.values():
+            if f.__dict__.get("_is_required") is None:
+                f.__dict__["_is_required"] = f.is_required
+
+        # Cache derived class-level views so get_fields/get_names/get_required/get_optional
+        # never rebuild these on repeated calls
+        cls._fields_proxy_ = MappingProxyType(fields_dict)
+        cls._field_names_ = tuple(fields_dict.keys())
+        cls._required_names_ = frozenset(
+            n for n, f in fields_dict.items() if f.is_required
+        )
+        cls._optional_names_ = frozenset(
+            n for n, f in fields_dict.items() if not f.is_required
+        )
         cls._fields_ = fields_dict
         return fields_dict
 
