@@ -659,28 +659,32 @@ class StructGenerator:
                     if frozen:
                         # optimization: use fact attribute not set yet as indicator of when to set instead
                         # of handling overhead of is None check on every call, cutting relative time by ~50%
+                        # use explicit ''.join([...]) so CPython always emits the same bytecode shape
+                        # regardless of field count (avoids the BUILD_STRING -> str.join threshold flip)
                         code_str = (
                             f"def __repr__(self):\n"
                             + f"    try:\n"
                             + f"        return self.{_FROZEN_REPR}\n"
                             + f"    except AttributeError:\n"
-                            + f'        obj_setattr(self, "{_FROZEN_REPR}", (f"{{self.__class__.__name__}}("\n'
-                            + "\n".join(
-                                f'            f"_field_{i}={{self._field_{i}!r}}{"" if i == field_count - 1 else ","}"'
+                            + f"        obj_setattr(self, \"{_FROZEN_REPR}\", self.__class__.__name__ + '(' + ''.join([\n"
+                            + ",\n".join(
+                                f"            f\"_field_{i}={{self._field_{i}!r}}{',' if i < field_count - 1 else ''}\""
                                 for i in range(field_count)
                             )
-                            + f'\n        ")"))\n'
+                            + f"\n        ]) + ')'))\n"
                             + f"        return self.{_FROZEN_REPR}"
                         )
                     else:
+                        # use explicit ''.join([...]) so CPython always emits the same bytecode shape
+                        # regardless of field count (avoids the BUILD_STRING -> str.join threshold flip)
                         code_str = (
                             f"def __repr__(self):\n"
-                            + f'    return (f"{{self.__class__.__name__}}("\n'
-                            + "\n".join(
-                                f'            f"_field_{i}={{self._field_{i}!r}}{"" if i == field_count - 1 else ","}"'
+                            + f"    return self.__class__.__name__ + '(' + ''.join([\n"
+                            + ",\n".join(
+                                f"        f\"_field_{i}={{self._field_{i}!r}}{',' if i < field_count - 1 else ''}\""
                                 for i in range(field_count)
                             )
-                            + f'\n        ")")\n'
+                            + f"\n    ]) + ')'\n"
                         )
                 exec(
                     code_str,
@@ -696,44 +700,24 @@ class StructGenerator:
             if field_count == 0:
                 func = template_function
             else:
-                if frozen:
-                    func = template_function.__class__(
-                        template_function.__code__.replace(
-                            co_names=(
-                                _FROZEN_REPR,
-                                "AttributeError",
-                                "obj_setattr",
-                                "__class__",
-                                "__name__",
-                            )
-                            + field_names,
-                            co_consts=(
-                                None,
-                                _FROZEN_REPR,
-                                f"({field_names[0]}=",
-                                *tuple(
-                                    f",{field_name}=" for field_name in field_names[1:]
-                                ),
-                                ")",
-                            ),
-                        ),
-                        template_function.__globals__,
-                    )
-                else:
-                    func = template_function.__class__(
-                        template_function.__code__.replace(
-                            co_names=("__class__", "__name__") + field_names,
-                            co_consts=(
-                                None,
-                                f"({field_names[0]}=",
-                                *tuple(
-                                    f",{field_name}=" for field_name in field_names[1:]
-                                ),
-                                ")",
-                            ),
-                        ),
-                        template_function.__globals__,
-                    )
+                # replace _field_N placeholder names and their label constants with the
+                # actual field names. use dict-based substitution so we are not sensitive
+                # to the exact ordering of co_names / co_consts, which can vary by field
+                # count due to CPython's internal compilation thresholds
+                old_name_to_new = {f'_field_{i}': field_names[i] for i in range(field_count)}
+                new_co_names = tuple(old_name_to_new.get(n, n) for n in template_function.__code__.co_names)
+                old_const_to_new = {f'_field_{i}=': f'{field_names[i]}=' for i in range(field_count)}
+                new_co_consts = tuple(
+                    old_const_to_new.get(c, c) if isinstance(c, str) else c
+                    for c in template_function.__code__.co_consts
+                )
+                func = template_function.__class__(
+                    template_function.__code__.replace(
+                        co_names=new_co_names,
+                        co_consts=new_co_consts,
+                    ),
+                    template_function.__globals__,
+                )
             self._cache_repr_exact[exact_key] = func
         cls.__repr__ = func
 
