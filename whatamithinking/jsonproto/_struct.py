@@ -1019,6 +1019,7 @@ class StructGenerator:
     ) -> FunctionType:
         code_str = (
             f"def __init__(self, {'*, ' if kw_only else ''}{', '.join(f'_field_{i}' for i in range(field_count))}):\n"
+            + f"    obj_setattr(self, '{_SETTED}', frozenset({{{', '.join(f'"_field_{i}"' for i in range(field_count))}}}))\n"
             + "\n".join(
                 f'    obj_setattr(self, "_field_{i}", _field_{i})'
                 for i in range(field_count)
@@ -1041,6 +1042,7 @@ class StructGenerator:
     ) -> FunctionType:
         code_str = (
             f"def __init__(self, {'*, ' if kw_only else ''}{', '.join(f'_field_{i}' for i in range(field_count))}):\n"
+            + f"    self.{_SETTED} = frozenset({{{', '.join(f'"_field_{i}"' for i in range(field_count))}}})\n"
             + "\n".join(f"    self._field_{i} = _field_{i}" for i in range(field_count))
             + "\n"
             + (
@@ -1142,9 +1144,15 @@ class StructGenerator:
                 co_varnames=tuple(
                     name_map.get(n, n) for n in template_function.__code__.co_varnames
                 ),
+                # python interpreter optimizes the frozenset sometimes depending on the size
+                # so sometimes it is present and othertimes just the field names are used
                 co_consts=tuple(
-                    name_map.get(c, c) if isinstance(c, str) else c
-                    for c in template_function.__code__.co_consts
+                    (
+                        frozenset(name_map.values())
+                        if isinstance(v, frozenset)
+                        else name_map.get(v, v)
+                    )
+                    for v in template_function.__code__.co_consts
                 ),
             ),
             template_function.__globals__,
@@ -1161,6 +1169,16 @@ class StructGenerator:
         name_map = {f"_field_{i}": field_names[i] for i in range(len(field_names))}
         func = template_function.__class__(  # type: ignore
             template_function.__code__.replace(  # type: ignore
+                # python interpreter optimizes the frozenset sometimes depending on the size
+                # so sometimes it is present and othertimes just the field names are used
+                co_consts=tuple(
+                    (
+                        frozenset(name_map.values())
+                        if isinstance(v, frozenset)
+                        else name_map.get(v, v)
+                    )
+                    for v in template_function.__code__.co_consts
+                ),
                 co_names=tuple(
                     name_map.get(n, n) for n in template_function.__code__.co_names
                 ),
